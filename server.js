@@ -1,6 +1,7 @@
 // server.js
 
-// Carga las variables de entorno del archivo .env
+// Carga las variables de entorno del archivo .env.
+// Esto es para uso local. En Railway, las variables se configuran en el panel.
 require('dotenv').config();
 
 const express = require('express');
@@ -16,54 +17,70 @@ app.use(express.json());
 // Middleware para servir archivos estáticos (asegúrate de que tu index.html y otros assets estén en la carpeta 'public')
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Configuración de Google Sheets API ---
-// Ruta al archivo JSON de tu cuenta de servicio de Google Cloud.
-// ¡IMPORTANTE!: Asegúrate de que esta ruta y nombre de archivo sean correctos
-// y que el archivo JSON (con tus credenciales) NO esté en tu repositorio público (.gitignore).
-const KEYFILEPATH = path.join(__dirname, 'credentials', 'tecsa-462215-0801a94cf603.json'); // <<-- ¡VERIFICA ESTA RUTA Y NOMBRE DE ARCHIVO!
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID; // ID de tu hoja de cálculo (definido en el archivo .env)
+// --- Configuración y Verificación de Variables de Entorno Críticas ---
+// ID de tu hoja de cálculo de Google Sheets.
+// Se lee de la variable de entorno GOOGLE_SHEET_ID.
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 
-// Verificación de variables de entorno críticas al inicio del servidor
+// Contenido JSON de las credenciales de la cuenta de servicio de Google.
+// Se lee de la variable de entorno GOOGLE_CREDENTIALS.
+const GOOGLE_CREDENTIALS_JSON = process.env.GOOGLE_CREDENTIALS;
+
+// Verificación crítica al inicio: Asegura que las variables esenciales estén definidas.
 if (!SPREADSHEET_ID) {
-    console.error('❌ ERROR CRÍTICO: GOOGLE_SHEET_ID no está definido en el archivo .env');
-    console.error('Asegúrate de tener un archivo .env en la raíz del proyecto con GOOGLE_SHEET_ID=TU_ID_DE_HOJA');
-    process.exit(1); // Sale de la aplicación si falta una variable esencial
+    console.error('❌ ERROR CRÍTICO: La variable de entorno GOOGLE_SHEET_ID no está definida.');
+    console.error('Asegúrate de configurarla en tu archivo .env local o en el panel de Railway.');
+    process.exit(1); // Sale de la aplicación si falta la variable crucial
 }
 
+if (!GOOGLE_CREDENTIALS_JSON) {
+    console.error('❌ ERROR CRÍTICO: La variable de entorno GOOGLE_CREDENTIALS no está definida.');
+    console.error('Asegúrate de pegar el CONTENIDO COMPLETO de tu archivo JSON de credenciales de Google Service Account');
+    console.error('en la variable GOOGLE_CREDENTIALS en tu archivo .env local o en el panel de Railway.');
+    process.exit(1); // Sale de la aplicación si falta la variable crucial
+}
+
+// --- Configuración de Google Sheets API ---
 // Configuración de la autenticación JWT (JSON Web Token) para la cuenta de servicio.
-// Concede los permisos necesarios para escribir en hojas de cálculo.
+// Las credenciales se parsean directamente desde la variable de entorno GOOGLE_CREDENTIALS.
+let parsedCredentials;
+try {
+    parsedCredentials = JSON.parse(GOOGLE_CREDENTIALS_JSON);
+} catch (e) {
+    console.error('❌ ERROR CRÍTICO: La variable GOOGLE_CREDENTIALS no es un JSON válido.');
+    console.error('Asegúrate de haber copiado todo el contenido JSON de tu archivo de credenciales.');
+    process.exit(1);
+}
+
 const auth = new google.auth.GoogleAuth({
-    keyFile: KEYFILEPATH,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    credentials: parsedCredentials, // ¡Las credenciales se leen desde la variable de entorno!
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'], // Alcance para acceder a hojas de cálculo
 });
 
 // --- Funciones Auxiliares ---
 /**
  * Obtiene el timestamp actual en formato legible (YYYY-MM-DD HH:MM:SS)
  * para la zona horaria de la Ciudad de México.
- * Este formato es más robusto para la interpretación de Google Sheets.
+ * Este formato es robusto para la interpretación de Google Sheets.
  */
 function obtenerTimestamp() {
     const now = new Date();
-    // Usa toLocaleString para obtener la fecha/hora en la zona horaria deseada
-    // y luego construye el formato YYYY-MM-DD HH:MM:SS
+    // Opciones para formatear la fecha y hora.
     const options = {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false, // Formato 24 horas
+        hour12: false, // Formato de 24 horas
         timeZone: 'America/Mexico_City'
     };
-    // Formato ejemplo: 07/02/2025 09:00:00
-    const parts = new Date(now).toLocaleString('es-MX', options).split(/[./\s:]+/);
-    // Asumiendo formato DD/MM/YYYY HH:MM:SS
-    const day = parts[0];
-    const month = parts[1];
-    const year = parts[2];
-    const hour = parts[3];
-    const minute = parts[4];
-    const second = parts[5];
+    // Formateamos la fecha/hora en la zona horaria de México
+    const formattedDate = new Date(now).toLocaleString('es-MX', options);
 
-    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+    // Reemplazamos los separadores de fecha y hora para obtener YYYY-MM-DD HH:MM:SS
+    // toLocaleString('es-MX') a menudo produce "DD/MM/YYYY HH:MM:SS"
+    // Lo transformamos a YYYY-MM-DD HH:MM:SS
+    const [datePart, timePart] = formattedDate.split(' ');
+    const [day, month, year] = datePart.split('/'); // Puede ser '/' o '-' o '.' según el locale
+    return `${year}-${month}-${day} ${timePart}`;
 }
 
 
@@ -200,7 +217,7 @@ app.post('/enviar-queja', async (req, res) => {
             });
         }
 
-        const { tabName, rowValues } = configuracionFila; // <<-- ¡CORRECCIÓN AQUÍ: configuracionFila!
+        const { tabName, rowValues } = configuracionFila; // ¡CORRECCIÓN de la errata 'configuracionFuga' a 'configuracionFila'!
 
         // Autentica con Google y obtiene el cliente de Google Sheets API
         const authClient = await auth.getClient();
@@ -210,8 +227,9 @@ app.post('/enviar-queja', async (req, res) => {
         const request = {
             spreadsheetId: SPREADSHEET_ID,
             // El rango dinámico para insertar la fila en la pestaña correcta
+            // Ej: 'RetrasoUnidad!A:Z'. La hoja debe existir con el nombre exacto.
             range: `${tabName}!A:Z`,
-            valueInputOption: 'USER_ENTERED', // Permite que Google interprete los valores (ej. fechas, horas)
+            valueInputOption: 'USER_ENTERED', // Interpreta los valores como si un usuario los ingresara (útil para fechas/horas)
             insertDataOption: 'INSERT_ROWS', // Inserta una nueva fila al final de los datos existentes
             resource: {
                 values: [rowValues], // El array de valores que representa la nueva fila
@@ -245,25 +263,21 @@ app.post('/enviar-queja', async (req, res) => {
         console.error('❌ Error general al procesar la queja:', error);
 
         let errorMessage = "Hubo un problema al registrar la queja. Inténtalo de nuevo.";
-        // Determina el código de estado HTTP (por defecto 500 para errores del servidor)
-        let statusCode = 500;
+        let statusCode = 500; // Por defecto, error interno del servidor
 
         // Errores específicos de la API de Google Sheets o configuración
-        if (error.code === 403) { // Permisos insuficientes para la cuenta de servicio
+        if (error.code === 403) { // Permisos insuficientes para la cuenta de servicio (Forbidden)
             errorMessage = "Error de permisos con la API de Google Sheets. Asegúrate de que la cuenta de servicio tenga acceso de 'Editor' a la hoja.";
             console.error('🔒 ERROR DE PERMISOS: Verificar que la cuenta de servicio tenga acceso como Editor a la hoja.');
-            // statusCode se mantiene en 500 ya que es un problema del servidor/configuración
         } else if (error.message && error.message.includes('Unable to parse range')) { // Nombre de pestaña incorrecto o inexistente
-            errorMessage = `Error de configuración: No se encontró la pestaña '${tabName || 'desconocida'}'. Asegúrate de que existe y el nombre es exacto.`;
+            errorMessage = `Error de configuración: No se encontró la pestaña '${req.body.tipo || 'desconocida'}'. Asegúrate de que existe y el nombre es exacto.`;
             console.error(`📋 ERROR DE PESTAÑA: Verificar el nombre de la pestaña para el tipo de queja.`);
-            // statusCode se mantiene en 500
-        } else if (error.code === 'ENOENT') { // Archivo de clave de servicio no encontrado
+        } else if (error.code === 'ENOENT') { // Archivo de clave de servicio no encontrado (esto no debería ocurrir si usas la variable de entorno)
             errorMessage = "Error de configuración del servidor: Archivo de credenciales no encontrado. Contacta al administrador.";
             console.error('📁 ERROR DE ARCHIVO: Verificar que la ruta y el nombre del archivo de credenciales son correctos.');
-            // statusCode se mantiene en 500
-        } else if (error.code === 400) { // Bad Request de la API (ej. formato de datos inválido)
+        } else if (error.code === 400) { // Bad Request de la API (ej. formato de datos inválido enviado a Google Sheets)
             errorMessage = `Error de la API de Google Sheets: ${error.message}.`;
-            statusCode = 400; // Si es un error de cliente (Bad Request), podemos devolver 400
+            statusCode = 400; // Si es un error de cliente (Bad Request), devolvemos 400
             console.error('📊 ERROR DE API: La API de Google Sheets rechazó la solicitud.');
         }
 
@@ -320,6 +334,7 @@ app.listen(PORT, () => {
     console.log(`📋 Servidor de Quejas Transporte v2.0`);
     console.log(`🌐 Corriendo en: http://localhost:${PORT}`);
     console.log(`📊 Google Sheet ID: ${SPREADSHEET_ID}`);
+    // console.log(`🔑 Credenciales: ${GOOGLE_CREDENTIALS_JSON ? 'Cargadas' : 'No cargadas'}`); // No imprimir esto en producción
     console.log(`⏰ Iniciado: ${obtenerTimestamp()}`);
     console.log('🚀 ====================================');
     console.log('\n📝 Rutas disponibles:');
