@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Quejas | Transporte de Personal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Variables de color - Nueva paleta azul/blanco/negro */
+    :root {
+      --color-primary-dark: #0A1628; /* Azul muy oscuro (casi negro) */
+      --color-primary-blue: #1E3A8A; /* Azul fuerte */
+      --color-accent-blue: #3B82F6; /* Azul medio vibrante */
+      --color-light-blue: #DBEAFE; /* Azul muy claro */
+      --color-white: #FFFFFF; /* Blanco puro */
+      --color-text-dark: #1F2937; /* Gris oscuro para texto */
+      --color-text-light: #F8FAFC; /* Blanco suave para texto sobre oscuro */
+      --color-border: #E5E7EB; /* Gris claro para bordes */
+      --color-shadow: rgba(30, 58, 138, 0.15); /* Sombra azul sutil */
+      --color-hover-blue: #2563EB; /* Azul para hover */
+    }
+
+    /* Estilos Generales */
+    body {
+      font-family: 'Lato', sans-serif;
+      background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-blue) 100%);
+      color: var(--color-text-light);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    /* Contenedor principal del formulario */
+    .form-container {
+      background: var(--color-white);
+      border-radius: 20px;
+      box-shadow: 0 25px 50px var(--color-shadow);
+      padding: 50px;
+      max-width: 800px;
+      width: 100%;
+      box-sizing: border-box;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .form-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue), var(--color-accent-blue));
+    }
+
+    h2 {
+      font-family: 'Montserrat', sans-serif;
+      text-align: center;
+      color: var(--color-primary-blue);
+      margin-bottom: 40px;
+      font-size: 2.8em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      position: relative;
+    }
+
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue));
+      border-radius: 2px;
+    }
+
+    h3 {
+      font-family: 'Montserrat', sans-serif;
+      color: var(--color-primary-blue);
+      margin-top: 30px;
+      margin-bottom: 20px;
+      padding: 15px 20px;
+      background: var(--color-light-blue);
+      border-radius: 10px;
+      font-size: 1.3em;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      border-left: 5px solid var(--color-accent-blue);
+    }
+
+    /* Estilos para Etiquetas y Campos de Entrada */
+    label {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--color-text-dark);
+      font-weight: 600;
+      font-size: 1em;
+    }
+
+    input[type="text"],
+    input[type="time"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 16px;
+      margin-bottom: 25px;
+      border: 2px solid var(--color-border);
+      border-radius: 12px;
+      box-sizing: border-box;
+      font-size: 1em;
+      color: var(--color-text-dark);
+      background-color: var(--color-white);
+      transition: all 0.3s ease;
+      font-family: 'Lato', sans-serif;
+    }
+
+    input[type="text"]:focus,
+    input[type="time"]:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--color-accent-blue);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+      outline: none;
+      transform: translateY(-2px);
+    }
+
+    input[type="text"]::placeholder,
+    textarea::placeholder {
+      color: #9CA3AF;
+      font-style: italic;
+    }
+
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg fill="%233B82F6" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 15px center;
+      background-size: 24px;
+      cursor: pointer;
+    }
+
+    /* Estilo del Botón de Envío */
+    button[type="submit"] {
+      background: linear-gradient(135deg, var(--color-accent-blue), var(--color-primary-blue));
+      color: var(--color-white);
+      padding: 18px 40px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1.2em;
+      font-weight: 700;
+      width: 100%;
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    button[type="submit"]:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4);
+    }
+
+    button[type="submit"]:active {
+      transform: translateY(-1px);
+    }
+
+    button[type="submit"]::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    button[type="submit"]:hover::before {
+      left: 100%;
+    }
+
+    /* Estilos para las Secciones Específicas de Queja */
+    .queja-especifica {
+      display: none;
+      border: 2px solid var(--color-light-blue);
+      background: linear-gradient(135deg, var(--color-white) 0%, var(--color-light-blue) 100%);
+      padding: 35px;
+      margin-top: 30px;
+      margin-bottom: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.1);
+      position: relative;
+    }
+
+    .queja-especifica::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue));
+      border-radius: 15px 15px 0 0;
+    }
+
+    /* Separadores de sección */
+    .form-group {
+      margin-bottom: 25px;
+      position: relative;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Efectos visuales mejorados */
+    .form-container {
+      animation: slideIn 0.6s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Indicador de campo requerido */
+    label[for] {
+      position: relative;
+    }
+
+    input[required] + label::after,
+    textarea[required] + label::after,
+    select[required] + label::after {
+      content: '*';
+      color: var(--color-accent-blue);
+      margin-left: 5px;
+      font-weight: bold;
+    }
+
+    /* Responsividad */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      .form-container {
+        padding: 30px 25px;
+        margin: 10px;
+        border-radius: 15px;
+      }
+      h2 {
+        font-size: 2.2em;
+        margin-bottom: 30px;
+      }
+      h3 {
+        font-size: 1.2em;
+        padding: 12px 15px;
+      }
+      input[type="text"],
+      input[type="time"],
+      textarea,
+      select {
+        padding: 14px;
+        font-size: 16px; /* Previene zoom en iOS */
+      }
+      button[type="submit"] {
+        padding: 16px 30px;
+        font-size: 1.1em;
+      }
+      .queja-especifica {
+        padding: 25px 20px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      h2 {
+        font-size: 1.8em;
+        letter-spacing: 1px;
+      }
+      .form-container {
+        padding: 25px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>Quejas Transporte de Personal</h2>
+
+    <form id="form-queja">
+      <div class="form-group">
+        <label for="nombre_usuario">Tu Nombre Completo:</label>
+        <input type="text" id="nombre_usuario" name="nombre_usuario" placeholder="Ej: Juan Pérez González" required>
+      </div>
+
+      <div class="form-group">
+        <label for="empresa">Empresa:</label>
+        <select name="empresa" id="empresa" required>
+          <option value="">Selecciona una empresa</option>
+          <option value="abc">ABC Technologies</option>
+          <option value="leoch">Leoch Battery</option>
+          <option value="gerber">Gerber</option>
+          <option value="phillips">Phillips</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="tipo">Tipo de queja:</label>
+        <select name="tipo" id="tipo" required>
+          <option value="">Selecciona el tipo de queja</option>
+          <option value="Retraso">Retraso de Unidad</option>
+          <option value="Mal trato">Mal Trato / Mala Actitud del Conductor</option>
+          <option value="Inseguridad">Inseguridad / Conducción Peligrosa</option>
+          <option value="Unidad en mal estado">Unidad en Mal Estado</option>
+          <option value="Otro">Otro (especificar)</option>
+        </select>
+      </div>
+
+      <div id="seccion-Retraso" class="queja-especifica">
+        <h3>Detalles de Retraso de Unidad</h3>
+        <div class="form-group">
+            <label for="direccion_subida">Dirección de Recolección (Calle, número, colonia):</label>
+            <input type="text" id="direccion_subida" name="direccion_subida" placeholder="Ej: Av. Siempre Viva 123, Centro" data-required="true">
+        </div>
+        <div class="form-group">
+            <label for="hora_programada">Hora de Recolección Programada (aprox.):</label>
+            <input type="time" id="hora_programada" name="hora_programada" data-required="true">
+        </div>
+        <div class="form-group">
+            <label for="hora_llegada">Hora Real de Llegada de la Unidad:</label>
+            <input type="time" id="hora_llegada" name="hora_llegada" data-required="true">
+        </div>
+        <div class="form-group">
+            <label for="detalles_retraso">Describe brevemente lo ocurrido con el retraso:</label>
+            <textarea id="detalles_retraso" name="detalles_retraso" rows="3" placeholder="Ej: La unidad llegó 20 minutos tarde sin aviso." data-required="true"></textarea>
+        </div>
+      </div>
+
+      <div id="seccion-Mal_trato" class="queja-especifica">
+        <h3>Detalles de Mal Trato / Mala Actitud</h3>
+        <div class="form-group">
+            <label for="nombre_conductor_maltrato">Si lo sabes, nombre o número de unidad del conductor:</label>
+            <input type="text" id="nombre_conductor_maltrato" name="nombre_conductor_maltrato" placeholder="Ej: Conductor Juan Pérez / Unidad #456">
+        </div>
+        <div class="form-group">
+            <label for="detalles_maltrato">Describe detalladamente lo ocurrido:</label>
+            <textarea id="detalles_maltrato" name="detalles_maltrato" rows="4" placeholder="Ej: El conductor usó lenguaje inapropiado y se negó a abrir la puerta en el punto acordado." data-required="true"></textarea>
+        </div>
+      </div>
+
+      <div id="seccion-Inseguridad" class="queja-especifica">
+        <h3>Detalles de Inseguridad / Conducción Peligrosa</h3>
+        <div class="form-group">
+            <label for="detalles_inseguridad">Describe la situación de inseguridad o el comportamiento peligroso:</label>
+            <textarea id="detalles_inseguridad" name="detalles_inseguridad" rows="4" placeholder="Ej: El conductor excedía el límite de velocidad y usaba el celular mientras manejaba." data-required="true"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="ubicacion_inseguridad">¿Dónde ocurrió el incidente (aprox. calle, cruce)?</label>
+            <input type="text" id="ubicacion_inseguridad" name="ubicacion_inseguridad" placeholder="Ej: En la intersección de Av. Central y Calle Juárez">
+        </div>
+      </div>
+
+      <div id="seccion-Unidad_en_mal_estado" class="queja-especifica">
+          <h3>Detalles de Unidad en Mal Estado</h3>
+          <div class="form-group">
+              <label for="numero_unidad_malestado">Número de Unidad (si lo conoces):</label>
+              <input type="text" id="numero_unidad_malestado" name="numero_unidad_malestado" placeholder="Ej: Unidad 789">
+          </div>
+          <div class="form-group">
+              <label for="tipo_falla">Tipo de falla o daño:</label>
+              <input type="text" id="tipo_falla" name="tipo_falla" placeholder="Ej: Asientos rotos, Aire acondicionado no funciona, Ruido extraño en el motor" data-required="true">
+          </div>
+          <div class="form-group">
+              <label for="detalles_malestado">Describe el estado de la unidad y si afectó el servicio:</label>
+              <textarea id="detalles_malestado" name="detalles_malestado" rows="4" placeholder="Ej: La unidad olía a gasolina, los cinturones de seguridad estaban defectuosos y la ventana no cerraba bien." data-required="true"></textarea>
+          </div>
+      </div>
+
+      <div id="seccion-Otro" class="queja-especifica">
+        <h3>Otros Detalles</h3>
+        <div class="form-group">
+            <label for="detalles_otro">Describe detalladamente tu queja:</label>
+            <textarea id="detalles_otro" name="detalles_otro" rows="5" data-required="true" placeholder="Por favor, sé lo más específico posible."></textarea>
+        </div>
+      </div>
+
+      <button type="submit">Enviar Queja</button>
+    </form>
+  </div>
+
+  <script>
+    const tipoQuejaSelect = document.getElementById('tipo');
+    const seccionesEspecificas = document.querySelectorAll('.queja-especifica');
+    const formQueja = document.getElementById('form-queja');
+
+    // Función para mostrar/ocultar secciones específicas del formulario
+    function mostrarSeccionQueja() {
+      const tipoSeleccionado = tipoQuejaSelect.value;
+
+      // Oculta todas las secciones específicas primero y limpia sus campos
+      seccionesEspecificas.forEach(seccion => {
+        seccion.style.display = 'none';
+        // Limpia los valores de los campos y quita el atributo 'required' si el campo está oculto
+        seccion.querySelectorAll('input, textarea, select').forEach(field => {
+          field.value = '';
+          field.removeAttribute('required'); // Quita el atributo 'required'
+        });
+      });
+
+      // Muestra la sección correspondiente al tipo seleccionado
+      if (tipoSeleccionado && tipoSeleccionado !== '') {
+        // Reemplaza espacios con guiones bajos para que coincida con los IDs de las secciones
+        const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_'); 
+        const seccionAMostrar = document.getElementById(idSeccion);
+        if (seccionAMostrar) {
+          seccionAMostrar.style.display = 'block';
+          // Vuelve a poner 'required' a los campos que lo necesitan dentro de la sección visible
+          // Usamos 'data-required="true"' en el HTML para identificar los campos que deben ser requeridos
+          seccionAMostrar.querySelectorAll('[data-required="true"]').forEach(field => {
+            field.setAttribute('required', 'required');
+          });
+        }
+      }
+    }
+
+    // Escucha cambios en el selector de tipo de queja
+    tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
+
+    // Llama la función al cargar la página para asegurar el estado inicial
+    document.addEventListener('DOMContentLoaded', mostrarSeccionQueja);
+
+    // --- Lógica de envío del formulario al backend ---
+    formQueja.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      // Recolectar todos los datos del formulario (incluyendo los campos específicos visibles)
+      const formData = new FormData(e.target);
+      const data = {};
+      for (let [key, value] of formData.entries()) {
+        data[key] = value;
+      }
+
+      try {
+        const res = await fetch('/enviar-queja', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+          alert("¡Queja enviada con éxito! Gracias por tu retroalimentación.");
+          formQueja.reset(); // Limpia el formulario
+          mostrarSeccionQueja(); // Resetea la visibilidad de las secciones después de limpiar
+        } else {
+          const errorText = await res.text();
+          alert(`Error al enviar la queja: ${errorText}`);
+        }
+      } catch (error) {
+        console.error('Error al enviar la queja:', error);
+        alert("Hubo un problema de conexión al enviar la queja. Inténtalo de nuevo.");
+      }
+    });
+  </script>
+</body>
+</html>
