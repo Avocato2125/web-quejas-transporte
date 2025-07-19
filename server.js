@@ -141,8 +141,8 @@ function sanitizeInput(input) {
  * @returns {string|null} - Mensaje de error si la validación falla, o null si es exitosa.
  */
 function validarCamposRequeridos(data) {
-    // CAMBIO: Ahora espera 'numero_empleado' en lugar de 'nombre_usuario'
-    const camposPrincipales = ['numero_empleado', 'empresa', 'tipo'];
+    // Campos principales ahora incluyen ruta, colonia y turno
+    const camposPrincipales = ['numero_empleado', 'empresa', 'ruta', 'colonia', 'turno', 'tipo'];
     
     for (const campo of camposPrincipales) {
         // Validación: campo no vacío o solo espacios
@@ -154,16 +154,29 @@ function validarCamposRequeridos(data) {
     }
     
     // Validaciones específicas adicionales para 'numero_empleado'
-    if (data.numero_empleado.length < 4) { // Ajusta el mínimo de caracteres para número de empleado
+    if (data.numero_empleado.length < 4) {
         return 'El número de empleado debe tener al menos 4 caracteres.';
     }
-    if (!/^\d+$/.test(data.numero_empleado)) { // Regex para verificar que solo contenga dígitos
+    if (!/^\d+$/.test(data.numero_empleado)) {
         return 'El número de empleado debe contener solo números.';
+    }
+    
+    // Validaciones para los nuevos campos
+    if (data.ruta.length < 2) {
+        return 'La ruta debe tener al menos 2 caracteres.';
+    }
+    if (data.colonia.length < 2) {
+        return 'La colonia debe tener al menos 2 caracteres.';
     }
     
     const tiposValidos = ['Retraso', 'Mal trato', 'Inseguridad', 'Unidad en mal estado', 'Otro'];
     if (!tiposValidos.includes(data.tipo)) {
         return 'Tipo de queja no válido.';
+    }
+    
+    const turnosValidos = ['Primero', 'Segundo', 'Tercero', 'Mixto'];
+    if (!turnosValidos.includes(data.turno)) {
+        return 'Turno no válido.';
     }
     
     return null; // No hay errores de validación
@@ -178,8 +191,8 @@ function validarCamposRequeridos(data) {
  */
 function construirDatosFila(tipo, data) {
     const timestamp = obtenerTimestamp();
-    // CAMBIO: Extrae 'numero_empleado' en lugar de 'nombre_usuario'
-    const { numero_empleado, empresa, latitud, longitud } = data; 
+    // Extrae los nuevos campos junto con los existentes
+    const { numero_empleado, empresa, ruta, colonia, turno, latitud, longitud } = data; 
 
     // Convertir latitud/longitud a string o dejar 'N/D' si no están presentes o son inválidas
     const latitudStr = (latitud !== null && latitud !== undefined && latitud !== '') ? String(latitud) : 'N/D';
@@ -189,14 +202,17 @@ function construirDatosFila(tipo, data) {
     // con el orden de los encabezados en la primera fila de la pestaña de Google Sheets.
     const configuraciones = {
         'Retraso': {
-            tabName: 'RetrasoUnidad', // Nombre exacto de tu pestaña en Google Sheets
+            tabName: 'RetrasoUnidad',
             rowValues: [
                 timestamp,
-                numero_empleado, // Campo 'Número de Empleado'
+                numero_empleado,
                 empresa,
+                ruta,           // Nuevo campo
+                colonia,        // Nuevo campo
+                turno,          // Nuevo campo
                 tipo,
-                latitudStr,  // Columna Latitud
-                longitudStr, // Columna Longitud
+                latitudStr,
+                longitudStr,
                 data.direccion_subida || '',
                 data.hora_programada || '',
                 data.hora_llegada || '',
@@ -204,60 +220,72 @@ function construirDatosFila(tipo, data) {
             ]
         },
         'Mal trato': {
-            tabName: 'MalTrato', // Nombre exacto de tu pestaña en Google Sheets
+            tabName: 'MalTrato',
             rowValues: [
                 timestamp,
-                numero_empleado, // Campo 'Número de Empleado'
+                numero_empleado,
                 empresa,
+                ruta,           // Nuevo campo
+                colonia,        // Nuevo campo
+                turno,          // Nuevo campo
                 tipo,
-                latitudStr,  // Columna Latitud
-                longitudStr, // Columna Longitud
+                latitudStr,
+                longitudStr,
                 data.nombre_conductor_maltrato || '',
                 data.detalles_maltrato || ''
             ]
         },
         'Inseguridad': {
-            tabName: 'Inseguridad', // Nombre exacto de tu pestaña en Google Sheets
+            tabName: 'Inseguridad',
             rowValues: [
                 timestamp,
-                numero_empleado, // Campo 'Número de Empleado'
+                numero_empleado,
                 empresa,
+                ruta,           // Nuevo campo
+                colonia,        // Nuevo campo
+                turno,          // Nuevo campo
                 tipo,
-                latitudStr,  // Columna Latitud
-                longitudStr, // Columna Longitud
+                latitudStr,
+                longitudStr,
                 data.detalles_inseguridad || '',
                 data.ubicacion_inseguridad || ''
             ]
         },
         'Unidad en mal estado': {
-            tabName: 'UnidadMalEstado', // Nombre exacto de tu pestaña en Google Sheets
+            tabName: 'UnidadMalEstado',
             rowValues: [
                 timestamp,
-                numero_empleado, // Campo 'Número de Empleado'
+                numero_empleado,
                 empresa,
+                ruta,           // Nuevo campo
+                colonia,        // Nuevo campo
+                turno,          // Nuevo campo
                 tipo,
-                latitudStr,  // Columna Latitud
-                longitudStr, // Columna Longitud
+                latitudStr,
+                longitudStr,
                 data.numero_unidad_malestado || '',
                 data.tipo_falla || '',
                 data.detalles_malestado || ''
             ]
         },
         'Otro': {
-            tabName: 'Otros', // Nombre exacto de tu pestaña en Google Sheets
+            tabName: 'Otros',
             rowValues: [
                 timestamp,
-                numero_empleado, // Campo 'Número de Empleado'
+                numero_empleado,
                 empresa,
+                ruta,           // Nuevo campo
+                colonia,        // Nuevo campo
+                turno,          // Nuevo campo
                 tipo,
-                latitudStr,  // Columna Latitud
-                longitudStr, // Columna Longitud
+                latitudStr,
+                longitudStr,
                 data.detalles_otro || ''
             ]
         }
     };
 
-    return configuraciones[tipo] || null; // Devuelve la configuración o null si el tipo no existe
+    return configuraciones[tipo] || null;
 }
 
 // --- RUTAS DEL SERVIDOR ---
@@ -338,6 +366,9 @@ app.post('/enviar-queja', async (req, res) => {
         console.log(`   - IP: ${clientIP}`);
         console.log(`   - Número de Empleado: ${req.body.numero_empleado}`);
         console.log(`   - Empresa: ${req.body.empresa}`);
+        console.log(`   - Ruta: ${req.body.ruta}`);
+        console.log(`   - Colonia: ${req.body.colonia}`);
+        console.log(`   - Turno: ${req.body.turno}`);
         console.log(`   - Tipo: ${tipo}`);
         console.log(`   - Pestaña: ${tabName}`);
         console.log(`   - Ubicación: ${req.body.latitud || 'N/D'}, ${req.body.longitud || 'N/D'}`);

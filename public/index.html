@@ -127,7 +127,7 @@
             letter-spacing: 0.5px;
         }
 
-        /* CORRECCIÓN: Bloque 1 - Solo para inputs y textareas (SIN flecha) */
+        /* Bloque 1 - Solo para inputs y textareas (SIN flecha) */
         input[type="text"],
         input[type="time"],
         textarea {
@@ -142,10 +142,9 @@
             background-color: var(--color-white);
             transition: all 0.3s ease;
             font-family: 'Lato', sans-serif;
-            /* Se eliminan 'appearance' y 'background-image' de aquí */
         }
 
-        /* CORRECCIÓN: Bloque 2 - Solo para select (CON flecha) */
+        /* Bloque 2 - Solo para select (CON flecha) */
         select {
             width: 100%;
             padding: 16px;
@@ -173,7 +172,7 @@
         input[type="text"]:focus,
         input[type="time"]:focus,
         textarea:focus,
-        select:focus { /* Agregado select:focus */
+        select:focus {
             border-color: var(--color-accent-blue);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
             outline: none;
@@ -183,13 +182,13 @@
         
         /* Estilo para la opción por defecto del select */
         select:invalid {
-            color: #9CA3AF; /* Color más claro para el placeholder */
+            color: #9CA3AF;
         }
         select option {
-            color: var(--color-text-dark); /* Asegura que las opciones tengan color de texto oscuro */
+            color: var(--color-text-dark);
         }
         select option[value=""] {
-            color: #9CA3AF; /* Color del placeholder para la primera opción */
+            color: #9CA3AF;
         }
 
 
@@ -428,21 +427,19 @@
         /* Estilos para el estado de la ubicación */
         #ubicacion-status {
             text-align: center;
-            /* CORRECCIÓN: Controlar visibilidad con JS/Clases, no display: none; fijo aquí */
-            min-height: 30px; /* Asegura que siempre haya un espacio visible */
-            margin-bottom: 20px; /* Margen estándar */
-            
+            min-height: 30px;
+            margin-bottom: 20px;
             padding: 8px 15px;
             border-radius: 8px;
             font-size: 0.9em;
             font-weight: 600;
             color: var(--color-text-dark);
             background-color: var(--color-border);
-            transition: all 0.3s ease; /* Añadir transición para suavizar cambios */
-            opacity: 0; /* INICIALMENTE OCULTAR CON OPACIDAD */
-            pointer-events: none; /* No interactuable cuando está oculto */
+            transition: all 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
         }
-        /* NUEVO: Clase para mostrar el status (controlada por JS) */
+        /* Clase para mostrar el status (controlada por JS) */
         #ubicacion-status.show {
             opacity: 1;
             pointer-events: all;
@@ -524,6 +521,29 @@
                 <div class="error-message"></div>
             </div>
 
+            <div class="form-group">
+                <label for="ruta">Ruta:</label>
+                <input type="text" id="ruta" name="ruta" placeholder="Ej: Ruta 15, Circuito Norte" required maxlength="100">
+                <div class="error-message"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="colonia">Colonia:</label>
+                <input type="text" id="colonia" name="colonia" placeholder="Ej: Centro, Las Flores" required maxlength="100">
+                <div class="error-message"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="turno">Turno:</label>
+                <select name="turno" id="turno" required>
+                    <option value="">Selecciona tu turno</option>
+                    <option value="Primero">Primero</option>
+                    <option value="Segundo">Segundo</option>
+                    <option value="Tercero">Tercero</option>
+                    <option value="Mixto">Mixto</option>
+                </select>
+                <div class="error-message"></div>
+            </div>
             <div class="form-group">
                 <label for="tipo">Tipo de queja:</label>
                 <select name="tipo" id="tipo" required>
@@ -679,7 +699,7 @@
             if (field.hasAttribute('required') && !field.value.trim()) {
                 isValid = false;
                 message = 'Este campo es requerido.';
-            } else if (field.type === 'text' || field.tagName === 'TEXTAREA') {
+            } else if (field.type === 'text' || field.tagName === 'TEXTAREA') { // CORREGIDO: Eliminado || field.tagName === 'SELECT'
                 const minLength = parseInt(field.getAttribute('minlength')) || 0;
                 const maxLength = parseInt(field.getAttribute('maxlength')) || Infinity;
                 if (field.value.trim().length < minLength) {
@@ -737,7 +757,6 @@
             document.querySelectorAll('.form-group').forEach(group => {
                 group.classList.remove('error', 'success');
                 const errorMsg = group.querySelector('.error-message');
-                // ¡CORRECCIÓN APLICADA: Usar errorMsg aquí!
                 if (errorMsg) errorMsg.style.display = 'none'; 
             });
 
@@ -756,7 +775,7 @@
                     seccionAMostrar.style.display = 'block';
                     seccionAMostrar.querySelectorAll('[data-required="true"]').forEach(field => {
                         field.setAttribute('required', 'required');
-                        validateField(field); // Validar campos recién mostrados
+                        validateField(field);
                     });
                 }
             }
@@ -766,7 +785,8 @@
         function validateCompleteForm() {
             let isValid = true;
             // Validar campos generales
-            formQueja.querySelectorAll('#numero_empleado, #empresa, #tipo').forEach(field => {
+            // CAMBIADO: Añadido 'ruta', 'colonia', 'turno' a la validación
+            formQueja.querySelectorAll('#numero_empleado, #empresa, #ruta, #colonia, #turno, #tipo').forEach(field => {
                 if (!validateField(field)) {
                     isValid = false;
                 }
@@ -790,18 +810,18 @@
 
         // Función para obtener la ubicación
         function obtenerUbicacion() {
-            ubicacionStatus.style.display = 'block'; // Muestra el div de estado de la ubicación
+            ubicacionStatus.style.display = 'block';
 
             if (navigator.geolocation) {
                 ubicacionStatus.textContent = 'Obteniendo tu ubicación...';
-                ubicacionStatus.className = 'ubicacion-status loading'; // Se usa solo 'loading' inicialmente, luego se añade 'show' si se quiere animar la aparición.
+                ubicacionStatus.className = 'ubicacion-status loading';
 
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         latitudInput.value = position.coords.latitude;
                         longitudInput.value = position.coords.longitude;
                         ubicacionStatus.textContent = 'Ubicación obtenida.';
-                        ubicacionStatus.className = 'ubicacion-status success show'; // Se añade 'show' para mantener visibilidad si se controla con opacidad.
+                        ubicacionStatus.className = 'ubicacion-status success show';
                         showNotification('Ubicación obtenida con éxito.', 'success', 3000);
                         console.log('Ubicación obtenida:', position.coords.latitude, position.coords.longitude);
                     },
@@ -831,7 +851,7 @@
                                 break;
                         }
                         ubicacionStatus.textContent = errorMessage;
-                        ubicacionStatus.className = statusClass + ' show'; // Se añade 'show' para mantener visibilidad.
+                        ubicacionStatus.className = statusClass + ' show';
                         showNotification(errorMessage + ' La queja se enviará sin ubicación.', notificationType, 7000);
                     },
                     {
@@ -842,7 +862,7 @@
                 );
             } else {
                 ubicacionStatus.textContent = 'Tu navegador no soporta la geolocalización.';
-                ubicacionStatus.className = 'ubicacion-status error show'; // Se añade 'show' para mantener visibilidad.
+                ubicacionStatus.className = 'ubicacion-status error show';
                 showNotification('Geolocalización no soportada por este navegador.', 'error', 5000);
                 console.warn('Geolocalización no soportada por el navegador.');
             }
