@@ -127,10 +127,25 @@
             letter-spacing: 0.5px;
         }
 
+        /* MODIFICADO: Bloque 1 - Solo para inputs y textareas (SIN flecha) */
         input[type="text"],
         input[type="time"],
-        textarea,
-        /* MODIFICADO: Estilos para select para corregir flechas */
+        textarea {
+            width: 100%;
+            padding: 16px;
+            margin-bottom: 25px;
+            border: 2px solid var(--color-border);
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-size: 1.05em;
+            color: var(--color-text-dark);
+            background-color: var(--color-white);
+            transition: all 0.3s ease;
+            font-family: 'Lato', sans-serif;
+            /* NO SE INCLUYEN appearance ni background-image AQUI */
+        }
+
+        /* MODIFICADO: Bloque 2 - Solo para select (CON flecha) */
         select {
             width: 100%;
             padding: 16px;
@@ -143,8 +158,8 @@
             background-color: var(--color-white);
             transition: all 0.3s ease;
             font-family: 'Lato', sans-serif;
-
-            /* Propiedades específicas para SELECT */
+            
+            /* Propiedades SOLO para select */
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -712,7 +727,7 @@
             document.querySelectorAll('.form-group').forEach(group => {
                 group.classList.remove('error', 'success');
                 const errorMsg = group.querySelector('.error-message');
-                if (errorMsg) errorMsg.style.display = 'none';
+                if (errorMsg) errorMessage.style.display = 'none';
             });
 
             seccionesEspecificas.forEach(seccion => {
@@ -776,15 +791,13 @@
                         longitudInput.value = position.coords.longitude;
                         ubicacionStatus.textContent = 'Ubicación obtenida.';
                         ubicacionStatus.className = 'ubicacion-status success';
-                        // geolocationObtained = true; // No usamos el flag, el valor del input ya lo indica
                         showNotification('Ubicación obtenida con éxito.', 'success', 3000);
                         console.log('Ubicación obtenida:', position.coords.latitude, position.coords.longitude);
                     },
                     (error) => {
                         console.error('Error al obtener la ubicación:', error);
-                        latitudInput.value = ''; // Limpiar si hay error previo
+                        latitudInput.value = '';
                         longitudInput.value = '';
-                        // geolocationObtained = false; // No usamos el flag
 
                         let errorMessage = 'No se pudo obtener la ubicación.';
                         let statusClass = 'ubicacion-status error';
@@ -802,7 +815,7 @@
                             case error.TIMEOUT:
                                 errorMessage = 'Tiempo de espera agotado para obtener la ubicación.';
                                 break;
-                            case error.UNKNOWN_ERROR:
+                                case error.UNKNOWN_ERROR:
                                 errorMessage = 'Error desconocido al obtener la ubicación.';
                                 break;
                         }
@@ -828,7 +841,7 @@
         // Cargar progreso y obtener ubicación al iniciar
         document.addEventListener('DOMContentLoaded', () => {
             mostrarSeccionQueja();
-            obtenerUbicacion(); // Intenta obtener la ubicación al cargar la página
+            obtenerUbicacion();
             loadProgress();
         });
 
@@ -847,7 +860,7 @@
                     data[key] = value;
                 }
             }
-            data.current_queja_type = tipoQuejaSelect.value; // Guardar el tipo de queja actual
+            data.current_queja_type = tipoQuejaSelect.value;
             
             sessionStorage.setItem('queja-progress', JSON.stringify(data));
         }
@@ -863,10 +876,10 @@
                             field.value = value;
                         }
                     });
-                    if (data.current_queja_type) { // Si hay un tipo de queja guardado, restáuralo
+                    if (data.current_queja_type) {
                         tipoQuejaSelect.value = data.current_queja_type;
                     }
-                    mostrarSeccionQueja(); // Vuelve a mostrar la sección correcta y aplica required
+                    mostrarSeccionQueja();
                     document.querySelectorAll('input, textarea, select').forEach(field => validateField(field));
 
                     showNotification('Progreso de la queja cargado.', 'info', 3000);
@@ -888,7 +901,7 @@
 
 
         // ENVÍO DEL FORMULARIO
-        let isSubmitting = false; // Bandera para prevenir doble envío
+        let isSubmitting = false;
 
         formQueja.addEventListener('submit', async function (e) {
             e.preventDefault();
