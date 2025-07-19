@@ -306,6 +306,13 @@ app.post('/enviar-queja', async (req, res) => {
 
         const { tabName, rowValues } = configuracionFila; // Desestructura la configuración de la fila
 
+        // Debug logging adicional
+        console.log('🔍 Enviando a Google Sheets:', {
+            tabName,
+            rowValuesLength: rowValues.length,
+            spreadsheetId: SPREADSHEET_ID ? 'Configurado' : 'NO CONFIGURADO'
+        });
+
         // Autentica con Google y obtiene el cliente de Google Sheets API
         const authClient = await auth.getClient();
         const sheets = google.sheets({ version: 'v4', auth: authClient });
@@ -321,26 +328,31 @@ app.post('/enviar-queja', async (req, res) => {
             },
         };
 
-        const response = await sheets.sheets.values.append(request); // <<-- ¡CORRECCIÓN: sheets.sheets.values.append!
+        // ✅ CORRECCIÓN PRINCIPAL: sheets.spreadsheets.values.append (NO sheets.sheets.values.append)
+        const response = await sheets.spreadsheets.values.append(request);
+        
+        console.log('✅ Respuesta exitosa de Google Sheets:', response.status);
 
         // Log de éxito en la consola del servidor
         console.log(`✅ Queja registrada exitosamente en Google Sheets:`);
-        console.log(`   - IP: ${clientIP}`);
-        console.log(`   - Número de Empleado: ${req.body.numero_empleado}`); // <<-- CAMBIO: Log de numero_empleado
-        console.log(`   - Empresa: ${req.body.empresa}`);
-        console.log(`   - Tipo: ${tipo}`);
-        console.log(`   - Ubicación: ${req.body.latitud || 'N/D'}, ${req.body.longitud || 'N/D'}`); // Log de ubicación
-        console.log(`   - Timestamp: ${obtenerTimestamp()}`);
+        console.log(`   - IP: ${clientIP}`);
+        console.log(`   - Número de Empleado: ${req.body.numero_empleado}`);
+        console.log(`   - Empresa: ${req.body.empresa}`);
+        console.log(`   - Tipo: ${tipo}`);
+        console.log(`   - Pestaña: ${tabName}`);
+        console.log(`   - Ubicación: ${req.body.latitud || 'N/D'}, ${req.body.longitud || 'N/D'}`);
+        console.log(`   - Timestamp: ${obtenerTimestamp()}`);
 
         // Respuesta de éxito al frontend (al navegador)
         res.status(200).json({
             success: true,
             message: "¡Queja registrada con éxito en la hoja de cálculo! Gracias por tu retroalimentación.",
-            data: { // Datos útiles que podrías enviar de vuelta al frontend si los necesitas
+            data: {
                 timestamp: rowValues[0],
-                numero_empleado: req.body.numero_empleado, // <<-- CAMBIO: En la respuesta
+                numero_empleado: req.body.numero_empleado,
                 empresa: req.body.empresa,
                 tipo: tipo,
+                tabName: tabName,
                 latitud: req.body.latitud || null,
                 longitud: req.body.longitud || null
             }
@@ -349,6 +361,7 @@ app.post('/enviar-queja', async (req, res) => {
     } catch (error) {
         // Manejo de errores más detallado en la consola del servidor y respuesta al frontend
         console.error('❌ Error al procesar queja:', error);
+        console.error('❌ Error stack:', error.stack);
 
         let errorMessage = "Hubo un problema al registrar la queja. Inténtalo de nuevo.";
         let statusCode = 500; // Por defecto, error interno del servidor
@@ -360,20 +373,23 @@ app.post('/enviar-queja', async (req, res) => {
         } else if (error.message && error.message.includes('Unable to parse range')) { // Nombre de pestaña incorrecto o inexistente
             errorMessage = `Error de configuración: No se encontró la pestaña '${req.body.tipo || 'desconocida'}'. Asegúrate de que existe y el nombre es exacto.`;
             console.error(`📋 ERROR DE PESTAÑA: Verificar el nombre de la pestaña para el tipo de queja.`);
-        } else if (error.code === 'ENOENT') { // Archivo de clave de servicio no encontrado (esto no debería ocurrir si usas la variable de entorno)
+        } else if (error.code === 'ENOENT') { // Archivo de clave de servicio no encontrado
             errorMessage = "Error de configuración del servidor: Archivo de credenciales no encontrado. Contacta al administrador.";
             console.error('📁 ERROR DE ARCHIVO: Verificar que la ruta y el nombre del archivo de credenciales son correctos.');
-        } else if (error.code === 400) { // Bad Request de la API (ej. formato de datos inválido enviado a Google Sheets)
+        } else if (error.code === 400) { // Bad Request de la API
             errorMessage = `Error de la API de Google Sheets: ${error.message}.`;
-            statusCode = 400; // Si es un error de cliente (Bad Request), devolvemos 400
+            statusCode = 400;
             console.error('📊 ERROR DE API: La API de Google Sheets rechazó la solicitud.');
+        } else if (error.message && error.message.includes('sheets.sheets')) {
+            errorMessage = "Error de configuración en el código del servidor. Contacta al administrador.";
+            console.error('🐛 ERROR DE CÓDIGO: sheets.sheets.values.append debería ser sheets.spreadsheets.values.append');
         }
 
         // Envía la respuesta de error al frontend
         res.status(statusCode).json({
             success: false,
             error: errorMessage,
-            timestamp: obtenerTimestamp() // Incluye un timestamp para el error
+            timestamp: obtenerTimestamp()
         });
     }
 });
@@ -400,17 +416,16 @@ app.get('/health', (req, res) => {
         status: 'ok',
         timestamp: obtenerTimestamp(),
         service: 'Servidor de Quejas Transporte',
-        version: '2.0.0'
+        version: '2.1.0' // Versión actualizada con corrección
     });
 });
 
 // Manejo de rutas no encontradas (404)
-// Captura cualquier solicitud a una ruta que no ha sido definida anteriormente.
 app.use('*', (req, res) => {
     res.status(404).json({
         success: false,
         error: 'Ruta no encontrada',
-        availableRoutes: [ // Información útil para el cliente
+        availableRoutes: [
             'GET /',
             'POST /enviar-queja',
             'GET /health',
@@ -420,7 +435,6 @@ app.use('*', (req, res) => {
 });
 
 // Manejo global de errores (último middleware)
-// Captura cualquier error que ocurra en los middlewares o rutas y no haya sido manejado.
 app.use((error, req, res, next) => {
     console.error('❌ ERROR NO MANEJADO EN EL SERVIDOR:', error);
     res.status(500).json({
@@ -435,15 +449,15 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log('🚀 ====================================');
-    console.log(`📋 Servidor de Quejas Transporte v2.2`); // Versión actualizada
+    console.log(`📋 Servidor de Quejas Transporte v2.1`);
     console.log(`🌐 Corriendo en: http://localhost:${PORT}`);
     console.log(`🔒 Ambiente: ${NODE_ENV}`);
     console.log(`⏰ Iniciado: ${obtenerTimestamp()}`);
     console.log('🚀 ====================================');
     console.log('\n📝 Rutas disponibles:');
-    console.log(`   GET  / - Formulario principal`);
-    console.log(`   POST /enviar-queja - Enviar queja`);
-    console.log(`   GET  /health - Estado del servidor`);
-    console.log(`   GET  /stats - Estadísticas de rate limiting`);
+    console.log(`   GET  / - Formulario principal`);
+    console.log(`   POST /enviar-queja - Enviar queja`);
+    console.log(`   GET  /health - Estado del servidor`);
+    console.log(`   GET  /stats - Estadísticas de rate limiting`);
     console.log('\n✅ Servidor listo para recibir quejas!');
 });
