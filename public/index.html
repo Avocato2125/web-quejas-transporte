@@ -127,7 +127,7 @@
             letter-spacing: 0.5px;
         }
 
-        /* MODIFICADO: Bloque 1 - Solo para inputs y textareas (SIN flecha) */
+        /* CORRECCIÓN: Bloque 1 - Solo para inputs y textareas (SIN flecha) */
         input[type="text"],
         input[type="time"],
         textarea {
@@ -142,10 +142,10 @@
             background-color: var(--color-white);
             transition: all 0.3s ease;
             font-family: 'Lato', sans-serif;
-            /* NO SE INCLUYEN appearance ni background-image AQUI */
+            /* Se eliminan 'appearance' y 'background-image' de aquí */
         }
 
-        /* MODIFICADO: Bloque 2 - Solo para select (CON flecha) */
+        /* CORRECCIÓN: Bloque 2 - Solo para select (CON flecha) */
         select {
             width: 100%;
             padding: 16px;
@@ -165,7 +165,7 @@
             -moz-appearance: none;
             background-image: url('data:image/svg+xml;utf8,<svg fill="%233B82F6" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
             background-repeat: no-repeat;
-            background-position: right 18px center; /* Ajustado para que la flecha esté bien a la derecha */
+            background-position: right 18px center;
             background-size: 22px;
             cursor: pointer;
         }
@@ -181,7 +181,7 @@
             background-color: var(--color-white);
         }
         
-        /* NUEVO: Estilo para la opción por defecto del select */
+        /* Estilo para la opción por defecto del select */
         select:invalid {
             color: #9CA3AF; /* Color más claro para el placeholder */
         }
@@ -428,15 +428,26 @@
         /* Estilos para el estado de la ubicación */
         #ubicacion-status {
             text-align: center;
-            margin-bottom: 20px;
+            /* CORRECCIÓN: Controlar visibilidad con JS/Clases, no display: none; fijo aquí */
+            min-height: 30px; /* Asegura que siempre haya un espacio visible */
+            margin-bottom: 20px; /* Margen estándar */
+            
             padding: 8px 15px;
             border-radius: 8px;
             font-size: 0.9em;
             font-weight: 600;
-            display: none;
             color: var(--color-text-dark);
             background-color: var(--color-border);
+            transition: all 0.3s ease; /* Añadir transición para suavizar cambios */
+            opacity: 0; /* INICIALMENTE OCULTAR CON OPACIDAD */
+            pointer-events: none; /* No interactuable cuando está oculto */
         }
+        /* NUEVO: Clase para mostrar el status (controlada por JS) */
+        #ubicacion-status.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
         #ubicacion-status.loading {
             background-color: rgba(99, 102, 241, 0.15);
             color: var(--color-info);
@@ -630,7 +641,6 @@
         const latitudInput = document.getElementById('latitud');
         const longitudInput = document.getElementById('longitud');
         const ubicacionStatus = document.getElementById('ubicacion-status');
-        // let geolocationObtained = false; // Flag para saber si la ubicación ya fue obtenida (ya no tan necesario con el status)
 
         // Función para mostrar notificaciones flotantes
         function showNotification(message, type = 'success', duration = 5000) {
@@ -689,7 +699,7 @@
                         errorMessage.textContent = message;
                         errorMessage.style.display = 'block';
                     }
-                } else if (field.value.trim()) { // Solo marcar como éxito si no está vacío
+                } else if (field.value.trim()) {
                     formGroup.classList.add('success');
                 }
             }
@@ -704,7 +714,7 @@
             });
         });
 
-        // Función de sanitización del lado cliente (idéntica a la del backend)
+        // Función de sanitización del lado cliente
         function sanitizeInput(value) {
             if (typeof value !== 'string') return value;
             return value.trim()
@@ -727,7 +737,8 @@
             document.querySelectorAll('.form-group').forEach(group => {
                 group.classList.remove('error', 'success');
                 const errorMsg = group.querySelector('.error-message');
-                if (errorMsg) errorMessage.style.display = 'none';
+                // ¡CORRECCIÓN APLICADA: Usar errorMsg aquí!
+                if (errorMsg) errorMsg.style.display = 'none'; 
             });
 
             seccionesEspecificas.forEach(seccion => {
@@ -755,7 +766,7 @@
         function validateCompleteForm() {
             let isValid = true;
             // Validar campos generales
-            formQueja.querySelectorAll('#numero_empleado, #empresa, #tipo').forEach(field => { // CAMBIADO: de #nombre_usuario a #numero_empleado
+            formQueja.querySelectorAll('#numero_empleado, #empresa, #tipo').forEach(field => {
                 if (!validateField(field)) {
                     isValid = false;
                 }
@@ -783,14 +794,14 @@
 
             if (navigator.geolocation) {
                 ubicacionStatus.textContent = 'Obteniendo tu ubicación...';
-                ubicacionStatus.className = 'ubicacion-status loading';
+                ubicacionStatus.className = 'ubicacion-status loading'; // Se usa solo 'loading' inicialmente, luego se añade 'show' si se quiere animar la aparición.
 
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         latitudInput.value = position.coords.latitude;
                         longitudInput.value = position.coords.longitude;
                         ubicacionStatus.textContent = 'Ubicación obtenida.';
-                        ubicacionStatus.className = 'ubicacion-status success';
+                        ubicacionStatus.className = 'ubicacion-status success show'; // Se añade 'show' para mantener visibilidad si se controla con opacidad.
                         showNotification('Ubicación obtenida con éxito.', 'success', 3000);
                         console.log('Ubicación obtenida:', position.coords.latitude, position.coords.longitude);
                     },
@@ -815,12 +826,12 @@
                             case error.TIMEOUT:
                                 errorMessage = 'Tiempo de espera agotado para obtener la ubicación.';
                                 break;
-                                case error.UNKNOWN_ERROR:
+                            case error.UNKNOWN_ERROR:
                                 errorMessage = 'Error desconocido al obtener la ubicación.';
                                 break;
                         }
                         ubicacionStatus.textContent = errorMessage;
-                        ubicacionStatus.className = statusClass;
+                        ubicacionStatus.className = statusClass + ' show'; // Se añade 'show' para mantener visibilidad.
                         showNotification(errorMessage + ' La queja se enviará sin ubicación.', notificationType, 7000);
                     },
                     {
@@ -831,7 +842,7 @@
                 );
             } else {
                 ubicacionStatus.textContent = 'Tu navegador no soporta la geolocalización.';
-                ubicacionStatus.className = 'ubicacion-status error';
+                ubicacionStatus.className = 'ubicacion-status error show'; // Se añade 'show' para mantener visibilidad.
                 showNotification('Geolocalización no soportada por este navegador.', 'error', 5000);
                 console.warn('Geolocalización no soportada por el navegador.');
             }
