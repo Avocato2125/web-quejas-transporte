@@ -130,6 +130,7 @@
         input[type="text"],
         input[type="time"],
         textarea,
+        /* MODIFICADO: Estilos para select para corregir flechas */
         select {
             width: 100%;
             padding: 16px;
@@ -142,29 +143,45 @@
             background-color: var(--color-white);
             transition: all 0.3s ease;
             font-family: 'Lato', sans-serif;
+
+            /* Propiedades específicas para SELECT */
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%233B82F6" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 18px center; /* Ajustado para que la flecha esté bien a la derecha */
+            background-size: 22px;
+            cursor: pointer;
         }
 
         input[type="text"]:focus,
         input[type="time"]:focus,
         textarea:focus,
-        select:focus {
+        select:focus { /* Agregado select:focus */
             border-color: var(--color-accent-blue);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
             outline: none;
             transform: translateY(-3px);
             background-color: var(--color-white);
         }
+        
+        /* NUEVO: Estilo para la opción por defecto del select */
+        select:invalid {
+            color: #9CA3AF; /* Color más claro para el placeholder */
+        }
+        select option {
+            color: var(--color-text-dark); /* Asegura que las opciones tengan color de texto oscuro */
+        }
+        select option[value=""] {
+            color: #9CA3AF; /* Color del placeholder para la primera opción */
+        }
+
 
         input[type="text"]::placeholder,
         textarea::placeholder {
             color: #9CA3AF;
             font-style: italic;
-        }
-
-        select {
-            background-image: url('data:image/svg+xml;utf8,<svg fill="%233B82F6" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
-            background-position: right 18px center;
-            background-size: 22px;
         }
 
         button[type="submit"] {
@@ -320,7 +337,7 @@
             flex-direction: column;
             gap: 10px;
             max-width: 400px;
-            pointer-events: none; /* Permite clickear a través si no hay notificaciones */
+            pointer-events: none;
         }
 
         .notification {
@@ -332,7 +349,7 @@
             transform: translateX(100%);
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            pointer-events: all; /* Activa clicks solo en la notificación */
+            pointer-events: all;
             cursor: pointer;
         }
 
@@ -464,8 +481,8 @@
 
         <form id="form-queja">
             <div class="form-group">
-                <label for="nombre_usuario">Tu Nombre Completo:</label>
-                <input type="text" id="nombre_usuario" name="nombre_usuario" placeholder="Ej: Juan Pérez González" required minlength="2" maxlength="100">
+                <label for="numero_empleado">Número de Empleado:</label>
+                <input type="text" id="numero_empleado" name="numero_empleado" placeholder="Ej: 123456" required minlength="4" maxlength="10">
                 <div class="error-message"></div>
             </div>
 
@@ -576,7 +593,11 @@
 
             <input type="hidden" id="latitud" name="latitud">
             <input type="hidden" id="longitud" name="longitud">
-            <div id="ubicacion-status"></div> <button type="submit" id="submitBtn">Enviar Queja</button>
+            <div class="form-group">
+                <div id="ubicacion-status"></div>
+            </div>
+
+            <button type="submit" id="submitBtn">Enviar Queja</button>
         </form>
     </div>
 
@@ -594,7 +615,7 @@
         const latitudInput = document.getElementById('latitud');
         const longitudInput = document.getElementById('longitud');
         const ubicacionStatus = document.getElementById('ubicacion-status');
-        let geolocationObtained = false; // Flag para saber si la ubicación ya fue obtenida
+        // let geolocationObtained = false; // Flag para saber si la ubicación ya fue obtenida (ya no tan necesario con el status)
 
         // Función para mostrar notificaciones flotantes
         function showNotification(message, type = 'success', duration = 5000) {
@@ -644,6 +665,7 @@
                     message = `Máximo ${maxLength} caracteres.`;
                 }
             }
+            // Puedes añadir validaciones específicas aquí para "numero_empleado" si lo deseas (ej. solo números)
 
             if (formGroup) {
                 if (!isValid) {
@@ -652,7 +674,7 @@
                         errorMessage.textContent = message;
                         errorMessage.style.display = 'block';
                     }
-                } else if (field.value.trim()) {
+                } else if (field.value.trim()) { // Solo marcar como éxito si no está vacío
                     formGroup.classList.add('success');
                 }
             }
@@ -702,13 +724,13 @@
             });
 
             if (tipoSeleccionado && tipoSeleccionado !== '') {
-                const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
+                const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_'); 
                 const seccionAMostrar = document.getElementById(idSeccion);
                 if (seccionAMostrar) {
                     seccionAMostrar.style.display = 'block';
                     seccionAMostrar.querySelectorAll('[data-required="true"]').forEach(field => {
                         field.setAttribute('required', 'required');
-                        validateField(field);
+                        validateField(field); // Validar campos recién mostrados
                     });
                 }
             }
@@ -718,7 +740,7 @@
         function validateCompleteForm() {
             let isValid = true;
             // Validar campos generales
-            formQueja.querySelectorAll('#nombre_usuario, #empresa, #tipo').forEach(field => {
+            formQueja.querySelectorAll('#numero_empleado, #empresa, #tipo').forEach(field => { // CAMBIADO: de #nombre_usuario a #numero_empleado
                 if (!validateField(field)) {
                     isValid = false;
                 }
@@ -740,10 +762,9 @@
             return isValid;
         }
 
-        // Función para obtener la ubicación (modificada para mejor UX)
+        // Función para obtener la ubicación
         function obtenerUbicacion() {
-            // Muestra el estado de la ubicación
-            ubicacionStatus.style.display = 'block';
+            ubicacionStatus.style.display = 'block'; // Muestra el div de estado de la ubicación
 
             if (navigator.geolocation) {
                 ubicacionStatus.textContent = 'Obteniendo tu ubicación...';
@@ -755,7 +776,7 @@
                         longitudInput.value = position.coords.longitude;
                         ubicacionStatus.textContent = 'Ubicación obtenida.';
                         ubicacionStatus.className = 'ubicacion-status success';
-                        geolocationObtained = true; // La ubicación se obtuvo
+                        // geolocationObtained = true; // No usamos el flag, el valor del input ya lo indica
                         showNotification('Ubicación obtenida con éxito.', 'success', 3000);
                         console.log('Ubicación obtenida:', position.coords.latitude, position.coords.longitude);
                     },
@@ -763,7 +784,7 @@
                         console.error('Error al obtener la ubicación:', error);
                         latitudInput.value = ''; // Limpiar si hay error previo
                         longitudInput.value = '';
-                        geolocationObtained = false; // La ubicación NO se obtuvo
+                        // geolocationObtained = false; // No usamos el flag
 
                         let errorMessage = 'No se pudo obtener la ubicación.';
                         let statusClass = 'ubicacion-status error';
@@ -772,7 +793,7 @@
                         switch (error.code) {
                             case error.PERMISSION_DENIED:
                                 errorMessage = 'Ubicación denegada por el usuario.';
-                                statusClass = 'ubicacion-status denied'; // Estilo de advertencia
+                                statusClass = 'ubicacion-status denied';
                                 notificationType = 'warning';
                                 break;
                             case error.POSITION_UNAVAILABLE:
@@ -787,13 +808,12 @@
                         }
                         ubicacionStatus.textContent = errorMessage;
                         ubicacionStatus.className = statusClass;
-                        // Notificación flotante: informa que la queja se enviará sin ubicación
                         showNotification(errorMessage + ' La queja se enviará sin ubicación.', notificationType, 7000);
                     },
                     {
-                        enableHighAccuracy: true, // Solicita la mejor precisión posible
-                        timeout: 15000,           // Esperar hasta 15 segundos para la ubicación
-                        maximumAge: 0             // No usar una posición en caché
+                        enableHighAccuracy: true,
+                        timeout: 15000,
+                        maximumAge: 0
                     }
                 );
             } else {
@@ -807,13 +827,14 @@
 
         // Cargar progreso y obtener ubicación al iniciar
         document.addEventListener('DOMContentLoaded', () => {
-            mostrarSeccionQueja(); // Asegura el estado inicial del formulario y valida campos requeridos visibles
+            mostrarSeccionQueja();
             obtenerUbicacion(); // Intenta obtener la ubicación al cargar la página
-            loadProgress(); // Carga el progreso guardado
+            loadProgress();
         });
 
         // Event listeners existentes
         tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
+
 
         // Guardar progreso cada 30 segundos
         function saveProgress() {
@@ -826,8 +847,7 @@
                     data[key] = value;
                 }
             }
-            // Incluir el estado actual de la sección activa para recargarla correctamente
-            data.current_queja_type = tipoQuejaSelect.value;
+            data.current_queja_type = tipoQuejaSelect.value; // Guardar el tipo de queja actual
             
             sessionStorage.setItem('queja-progress', JSON.stringify(data));
         }
@@ -843,10 +863,10 @@
                             field.value = value;
                         }
                     });
-                    if (data.current_queja_type) {
+                    if (data.current_queja_type) { // Si hay un tipo de queja guardado, restáuralo
                         tipoQuejaSelect.value = data.current_queja_type;
                     }
-                    mostrarSeccionQueja();
+                    mostrarSeccionQueja(); // Vuelve a mostrar la sección correcta y aplica required
                     document.querySelectorAll('input, textarea, select').forEach(field => validateField(field));
 
                     showNotification('Progreso de la queja cargado.', 'info', 3000);
@@ -867,31 +887,26 @@
         });
 
 
-        // ENVÍO DEL FORMULARIO MEJORADO
+        // ENVÍO DEL FORMULARIO
         let isSubmitting = false; // Bandera para prevenir doble envío
 
         formQueja.addEventListener('submit', async function (e) {
             e.preventDefault();
 
-            // Prevenir doble envío
             if (isSubmitting) {
                 showNotification('La queja ya se está enviando. Por favor, espera.', 'info', 3000);
                 return;
             }
 
-            // Validar formulario completo antes de enviar
             if (!validateCompleteForm()) {
                 showNotification('Por favor, corrige los errores en el formulario.', 'error');
                 return;
             }
 
-            isSubmitting = true; // Activar bandera
-            
-            // Mostrar indicador de carga
+            isSubmitting = true;
             loadingOverlay.style.display = 'flex';
             submitBtn.disabled = true;
 
-            // Recolectar y sanitizar datos
             const formData = new FormData(e.target);
             const data = {};
             for (let [key, value] of formData.entries()) {
@@ -912,27 +927,24 @@
 
                 if (res.ok && responseData.success) {
                     showNotification('¡Queja enviada con éxito! Gracias por tu retroalimentación.', 'success');
-                    formQueja.reset(); // Limpia el formulario
-                    mostrarSeccionQueja(); // Resetea la visibilidad y requeridos
+                    formQueja.reset();
+                    mostrarSeccionQueja();
 
-                    // Limpiar todos los estados de validación visuales después del reset
                     document.querySelectorAll('.form-group').forEach(group => {
                         group.classList.remove('error', 'success');
                         const errorMsg = group.querySelector('.error-message');
                         if (errorMsg) errorMsg.style.display = 'none';
                     });
                 } else {
-                    // Si el backend envía un error específico, úsalo
                     showNotification(responseData.error || 'Error al enviar la queja', 'error');
                 }
             } catch (error) {
                 console.error('Error al enviar la queja:', error);
                 showNotification('Hubo un problema de conexión. Inténtalo de nuevo.', 'error');
             } finally {
-                // Ocultar indicador de carga
                 loadingOverlay.style.display = 'none';
                 submitBtn.disabled = false;
-                isSubmitting = false; // Restablecer bandera
+                isSubmitting = false;
             }
         });
     </script>
