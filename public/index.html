@@ -1,545 +1,940 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quejas | Transporte de Personal</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
-  <!-- NUEVA: Meta tags mejoradas -->
-  <meta name="description" content="Sistema de quejas para transporte de personal - Envía tu retroalimentación de manera segura">
-  <meta name="robots" content="noindex, nofollow">
-  
-  <style>
-    /* Variables de color existentes - mantener igual */
-    :root {
-      --color-primary-dark: #0A1628;
-      --color-primary-blue: #1E3A8A;
-      --color-accent-blue: #3B82F6;
-      --color-light-blue: #DBEAFE;
-      --color-white: #FFFFFF;
-      --color-text-dark: #1F2937;
-      --color-text-light: #F8FAFC;
-      --color-border: #E5E7EB;
-      --color-shadow: rgba(30, 58, 138, 0.15);
-      --color-hover-blue: #2563EB;
-      /* NUEVAS: Variables para estados */
-      --color-success: #10B981;
-      --color-error: #EF4444;
-      --color-warning: #F59E0B;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quejas | Transporte de Personal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <meta name="description" content="Sistema de quejas para transporte de personal - Envía tu retroalimentación de manera segura">
+    <meta name="robots" content="noindex, nofollow">
 
-    /* Todos los estilos existentes se mantienen igual... */
-    body {
-      font-family: 'Lato', sans-serif;
-      background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-blue) 100%);
-      color: var(--color-text-light);
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      box-sizing: border-box;
-    }
+    <style>
+        /* Variables de color */
+        :root {
+            --color-primary-dark: #0A1628;
+            --color-primary-blue: #1E3A8A;
+            --color-accent-blue: #3B82F6;
+            --color-light-blue: #DBEAFE;
+            --color-white: #FFFFFF;
+            --color-text-dark: #1F2937;
+            --color-text-light: #F8FAFC;
+            --color-border: #E5E7EB;
+            --color-shadow: rgba(30, 58, 138, 0.15);
+            --color-hover-blue: #2563EB;
+            --color-success: #10B981;
+            --color-error: #EF4444;
+            --color-warning: #F59E0B;
+            --color-info: #6366F1;
+        }
 
-    .form-container {
-      background: var(--color-white);
-      border-radius: 20px;
-      box-shadow: 0 25px 50px var(--color-shadow);
-      padding: 50px;
-      max-width: 800px;
-      width: 100%;
-      box-sizing: border-box;
-      position: relative;
-      overflow: hidden;
-    }
+        /* Estilos Generales y del Body */
+        body {
+            font-family: 'Lato', sans-serif;
+            background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-blue) 100%);
+            color: var(--color-text-light);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            line-height: 1.6;
+        }
 
-    /* NUEVO: Indicador de estado de envío */
-    .loading-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(255, 255, 255, 0.9);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      border-radius: 20px;
-      z-index: 1000;
-    }
+        /* Contenedor principal del formulario */
+        .form-container {
+            background: var(--color-white);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px var(--color-shadow);
+            padding: 50px;
+            max-width: 800px;
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInScale 0.8s ease-out;
+        }
 
-    .loading-spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid var(--color-light-blue);
-      border-top: 4px solid var(--color-accent-blue);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
+        /* Barra superior de acento */
+        .form-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue), var(--color-accent-blue));
+            z-index: 1;
+        }
 
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+        /* Animación de entrada para el formulario */
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
 
-    /* NUEVO: Estilos de notificación */
-    .notification {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 16px 24px;
-      border-radius: 12px;
-      color: white;
-      font-weight: 600;
-      opacity: 0;
-      transform: translateX(100%);
-      transition: all 0.3s ease;
-      z-index: 1001;
-      max-width: 400px;
-    }
+        /* Títulos */
+        h2 {
+            font-family: 'Montserrat', sans-serif;
+            text-align: center;
+            color: var(--color-primary-blue);
+            margin-bottom: 40px;
+            font-size: 2.8em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            position: relative;
+            padding-bottom: 15px;
+        }
 
-    .notification.show {
-      opacity: 1;
-      transform: translateX(0);
-    }
+        /* Línea decorativa bajo el título */
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue));
+            border-radius: 2px;
+        }
 
-    .notification.success {
-      background: var(--color-success);
-    }
+        h3 {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--color-primary-blue);
+            margin-top: 35px;
+            margin-bottom: 20px;
+            padding: 15px 25px;
+            background: var(--color-light-blue);
+            border-radius: 10px;
+            font-size: 1.4em;
+            font-weight: 600;
+            letter-spacing: 0.7px;
+            border-left: 6px solid var(--color-accent-blue);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
 
-    .notification.error {
-      background: var(--color-error);
-    }
+        /* Estilos para Etiquetas y Campos de Entrada */
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--color-text-dark);
+            font-weight: 700;
+            font-size: 1.05em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-    /* NUEVO: Validación visual mejorada */
-    .form-group.error input,
-    .form-group.error textarea,
-    .form-group.error select {
-      border-color: var(--color-error);
-      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
-    }
+        input[type="text"],
+        input[type="time"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 16px;
+            margin-bottom: 25px;
+            border: 2px solid var(--color-border);
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-size: 1.05em;
+            color: var(--color-text-dark);
+            background-color: var(--color-white);
+            transition: all 0.3s ease;
+            font-family: 'Lato', sans-serif;
+        }
 
-    .form-group.success input,
-    .form-group.success textarea,
-    .form-group.success select {
-      border-color: var(--color-success);
-      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
-    }
+        input[type="text"]:focus,
+        input[type="time"]:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--color-accent-blue);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+            outline: none;
+            transform: translateY(-3px);
+            background-color: var(--color-white);
+        }
 
-    .error-message {
-      color: var(--color-error);
-      font-size: 0.875em;
-      margin-top: 5px;
-      display: none;
-    }
+        input[type="text"]::placeholder,
+        textarea::placeholder {
+            color: #9CA3AF;
+            font-style: italic;
+        }
 
-    /* Resto de estilos CSS existentes se mantienen igual... */
-    .form-container::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue), var(--color-accent-blue)); }
-    h2 { font-family: 'Montserrat', sans-serif; text-align: center; color: var(--color-primary-blue); margin-bottom: 40px; font-size: 2.8em; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; position: relative; }
-    h2::after { content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 100px; height: 4px; background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue)); border-radius: 2px; }
-    h3 { font-family: 'Montserrat', sans-serif; color: var(--color-primary-blue); margin-top: 30px; margin-bottom: 20px; padding: 15px 20px; background: var(--color-light-blue); border-radius: 10px; font-size: 1.3em; font-weight: 600; letter-spacing: 0.5px; border-left: 5px solid var(--color-accent-blue); }
-    label { display: block; margin-bottom: 10px; color: var(--color-text-dark); font-weight: 600; font-size: 1em; }
-    input[type="text"], input[type="time"], textarea, select { width: 100%; padding: 16px; margin-bottom: 25px; border: 2px solid var(--color-border); border-radius: 12px; box-sizing: border-box; font-size: 1em; color: var(--color-text-dark); background-color: var(--color-white); transition: all 0.3s ease; font-family: 'Lato', sans-serif; }
-    input[type="text"]:focus, input[type="time"]:focus, textarea:focus, select:focus { border-color: var(--color-accent-blue); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); outline: none; transform: translateY(-2px); }
-    input[type="text"]::placeholder, textarea::placeholder { color: #9CA3AF; font-style: italic; }
-    select { appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill="%233B82F6" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); background-repeat: no-repeat; background-position: right 15px center; background-size: 24px; cursor: pointer; }
-    button[type="submit"] { background: linear-gradient(135deg, var(--color-accent-blue), var(--color-primary-blue)); color: var(--color-white); padding: 18px 40px; border: none; border-radius: 12px; cursor: pointer; font-size: 1.2em; font-weight: 700; width: 100%; transition: all 0.3s ease; letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3); position: relative; overflow: hidden; }
-    button[type="submit"]:hover { transform: translateY(-3px); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4); }
-    button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-    .queja-especifica { display: none; border: 2px solid var(--color-light-blue); background: linear-gradient(135deg, var(--color-white) 0%, var(--color-light-blue) 100%); padding: 35px; margin-top: 30px; margin-bottom: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.1); position: relative; }
-    .form-group { margin-bottom: 25px; position: relative; }
-    .form-container { animation: slideIn 0.6s ease-out; }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        select {
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%233B82F6" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+            background-position: right 18px center;
+            background-size: 22px;
+        }
 
-    /* Responsividad existente se mantiene igual... */
-    @media (max-width: 768px) {
-      body { padding: 10px; }
-      .form-container { padding: 30px 25px; margin: 10px; border-radius: 15px; }
-      h2 { font-size: 2.2em; margin-bottom: 30px; }
-      .notification { right: 10px; left: 10px; max-width: none; }
-    }
-  </style>
+        button[type="submit"] {
+            background: linear-gradient(135deg, var(--color-accent-blue), var(--color-primary-blue));
+            color: var(--color-white);
+            padding: 18px 40px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.3em;
+            font-weight: 700;
+            width: 100%;
+            transition: all 0.3s ease;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 18px 40px rgba(59, 130, 246, 0.5);
+            background: linear-gradient(135deg, var(--color-hover-blue), var(--color-primary-blue));
+        }
+
+        button[type="submit"]:active {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        button[type="submit"]::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.6s ease-out;
+        }
+
+        button[type="submit"]:hover::before {
+            left: 100%;
+        }
+
+        button[type="submit"]:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Estilos para las Secciones Específicas de Queja */
+        .queja-especifica {
+            display: none;
+            border: 2px solid var(--color-light-blue);
+            background: linear-gradient(135deg, var(--color-white) 0%, var(--color-light-blue) 100%);
+            padding: 35px;
+            margin-top: 35px;
+            margin-bottom: 35px;
+            border-radius: 15px;
+            box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15);
+            position: relative;
+            overflow: hidden;
+            animation: slideInFromLeft 0.6s ease-out;
+        }
+
+        .queja-especifica::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue));
+            border-radius: 15px 15px 0 0;
+        }
+
+        @keyframes slideInFromLeft {
+            from { opacity: 0; transform: translateX(-40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Separadores de sección */
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Indicador de campo requerido */
+        label[for]::after {
+            content: ' *';
+            color: var(--color-error);
+            font-weight: bold;
+            position: absolute;
+            margin-left: 5px;
+            top: 0;
+            transform: translateY(-2px);
+        }
+        input:not([required]) + label::after,
+        textarea:not([required]) + label::after,
+        select:not([required]) + label::after {
+            content: none;
+        }
+
+
+        /* Overlay de carga */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 20px;
+            font-family: 'Montserrat', sans-serif;
+            color: var(--color-primary-blue);
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid var(--color-light-blue);
+            border-top: 6px solid var(--color-accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Estilos de notificación flotante */
+        #notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+            pointer-events: none; /* Permite clickear a través si no hay notificaciones */
+        }
+
+        .notification {
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            pointer-events: all; /* Activa clicks solo en la notificación */
+            cursor: pointer;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: var(--color-success);
+        }
+
+        .notification.error {
+            background: var(--color-error);
+        }
+
+        .notification.info {
+            background: var(--color-info);
+        }
+
+        .notification.warning {
+            background: var(--color-warning);
+            color: var(--color-text-dark);
+        }
+
+        /* Validación visual y mensajes de error por campo */
+        .form-group.error input,
+        .form-group.error textarea,
+        .form-group.error select {
+            border-color: var(--color-error);
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+        }
+
+        .form-group.success input,
+        .form-group.success textarea,
+        .form-group.success select {
+            border-color: var(--color-success);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+        }
+
+        .error-message {
+            color: var(--color-error);
+            font-size: 0.875em;
+            margin-top: -15px;
+            margin-bottom: 15px;
+            display: none;
+            font-weight: 600;
+        }
+
+        input:invalid:not(:focus):not(:placeholder-shown),
+        textarea:invalid:not(:focus):not(:placeholder-shown),
+        select:invalid:not(:focus):not(:placeholder-shown) {
+            border-color: var(--color-error);
+        }
+        input:invalid:focus,
+        textarea:invalid:focus,
+        select:invalid:focus {
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
+        }
+
+        /* Estilos para el estado de la ubicación */
+        #ubicacion-status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            display: none;
+            color: var(--color-text-dark);
+            background-color: var(--color-border);
+        }
+        #ubicacion-status.loading {
+            background-color: rgba(99, 102, 241, 0.15);
+            color: var(--color-info);
+            border: 1px solid var(--color-info);
+        }
+        #ubicacion-status.success {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--color-success);
+            border: 1px solid var(--color-success);
+        }
+        #ubicacion-status.error {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--color-error);
+            border: 1px solid var(--color-error);
+        }
+        #ubicacion-status.denied {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: var(--color-warning);
+            border: 1px solid var(--color-warning);
+            font-weight: bold;
+        }
+
+        /* Responsividad */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .form-container { padding: 30px 25px; margin: 10px; border-radius: 15px; }
+            h2 { font-size: 2.2em; margin-bottom: 30px; letter-spacing: 2px; }
+            h2::after { width: 80px; }
+            h3 { font-size: 1.2em; padding: 12px 15px; }
+            label { font-size: 0.95em; }
+            input[type="text"], input[type="time"], textarea, select { padding: 14px; font-size: 16px; }
+            button[type="submit"] { padding: 16px 30px; font-size: 1.1em; }
+            .queja-especifica { padding: 25px 20px; }
+            #notification-container {
+                right: 10px;
+                left: 10px;
+                max-width: none;
+                top: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h2 { font-size: 1.8em; letter-spacing: 1.5px; }
+            .form-container { padding: 25px 20px; }
+            button[type="submit"] { font-size: 1em; padding: 15px 25px; }
+        }
+    </style>
 </head>
 <body>
-  <div class="form-container">
-    <!-- NUEVO: Overlay de carga -->
-    <div class="loading-overlay" id="loadingOverlay">
-      <div class="loading-spinner"></div>
+    <div class="form-container">
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <span id="loading-text">Enviando queja...</span>
+        </div>
+
+        <h2>Quejas Transporte de Personal</h2>
+
+        <form id="form-queja">
+            <div class="form-group">
+                <label for="nombre_usuario">Tu Nombre Completo:</label>
+                <input type="text" id="nombre_usuario" name="nombre_usuario" placeholder="Ej: Juan Pérez González" required minlength="2" maxlength="100">
+                <div class="error-message"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="empresa">Empresa:</label>
+                <select name="empresa" id="empresa" required>
+                    <option value="">Selecciona una empresa</option>
+                    <option value="abc">ABC Technologies</option>
+                    <option value="leoch">Leoch Battery</option>
+                    <option value="gerber">Gerber</option>
+                    <option value="phillips">Phillips</option>
+                </select>
+                <div class="error-message"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo">Tipo de queja:</label>
+                <select name="tipo" id="tipo" required>
+                    <option value="">Selecciona el tipo de queja</option>
+                    <option value="Retraso">Retraso de Unidad</option>
+                    <option value="Mal trato">Mal Trato / Mala Actitud del Conductor</option>
+                    <option value="Inseguridad">Inseguridad / Conducción Peligrosa</option>
+                    <option value="Unidad en mal estado">Unidad en Mal Estado</option>
+                    <option value="Otro">Otro (especificar)</option>
+                </select>
+                <div class="error-message"></div>
+            </div>
+
+            <div id="seccion-Retraso" class="queja-especifica">
+                <h3>Detalles de Retraso de Unidad</h3>
+                <div class="form-group">
+                    <label for="direccion_subida">Dirección de Recolección (Calle, número, colonia):</label>
+                    <input type="text" id="direccion_subida" name="direccion_subida" placeholder="Ej: Av. Siempre Viva 123, Centro" data-required="true" maxlength="200">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="hora_programada">Hora de Recolección Programada (aprox.):</label>
+                    <input type="time" id="hora_programada" name="hora_programada" data-required="true">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="hora_llegada">Hora Real de Llegada de la Unidad:</label>
+                    <input type="time" id="hora_llegada" name="hora_llegada" data-required="true">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="detalles_retraso">Describe brevemente lo ocurrido con el retraso:</label>
+                    <textarea id="detalles_retraso" name="detalles_retraso" rows="3" placeholder="Ej: La unidad llegó 20 minutos tarde sin aviso." data-required="true" maxlength="500"></textarea>
+                    <div class="error-message"></div>
+                </div>
+            </div>
+
+            <div id="seccion-Mal_trato" class="queja-especifica">
+                <h3>Detalles de Mal Trato / Mala Actitud</h3>
+                <div class="form-group">
+                    <label for="nombre_conductor_maltrato">Si lo sabes, nombre o número de unidad del conductor:</label>
+                    <input type="text" id="nombre_conductor_maltrato" name="nombre_conductor_maltrato" placeholder="Ej: Conductor Juan Pérez / Unidad #456" maxlength="100">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="detalles_maltrato">Describe detalladamente lo ocurrido:</label>
+                    <textarea id="detalles_maltrato" name="detalles_maltrato" rows="4" placeholder="Ej: El conductor usó lenguaje inapropiado y se negó a abrir la puerta en el punto acordado." data-required="true" maxlength="1000"></textarea>
+                    <div class="error-message"></div>
+                </div>
+            </div>
+
+            <div id="seccion-Inseguridad" class="queja-especifica">
+                <h3>Detalles de Inseguridad / Conducción Peligrosa</h3>
+                <div class="form-group">
+                    <label for="detalles_inseguridad">Describe la situación de inseguridad o el comportamiento peligroso:</label>
+                    <textarea id="detalles_inseguridad" name="detalles_inseguridad" rows="4" placeholder="Ej: El conductor excedía el límite de velocidad y usaba el celular mientras manejaba." data-required="true" maxlength="1000"></textarea>
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="ubicacion_inseguridad">¿Dónde ocurrió el incidente (aprox. calle, cruce)?</label>
+                    <input type="text" id="ubicacion_inseguridad" name="ubicacion_inseguridad" placeholder="Ej: En la intersección de Av. Central y Calle Juárez" maxlength="200">
+                    <div class="error-message"></div>
+                </div>
+            </div>
+
+            <div id="seccion-Unidad_en_mal_estado" class="queja-especifica">
+                <h3>Detalles de Unidad en Mal Estado</h3>
+                <div class="form-group">
+                    <label for="numero_unidad_malestado">Número de Unidad (si lo conoces):</label>
+                    <input type="text" id="numero_unidad_malestado" name="numero_unidad_malestado" placeholder="Ej: Unidad 789" maxlength="50">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="tipo_falla">Tipo de falla o daño:</label>
+                    <input type="text" id="tipo_falla" name="tipo_falla" placeholder="Ej: Asientos rotos, Aire acondicionado no funciona, Ruido extraño en el motor" data-required="true" maxlength="200">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="detalles_malestado">Describe el estado de la unidad y si afectó el servicio:</label>
+                    <textarea id="detalles_malestado" name="detalles_malestado" rows="4" placeholder="Ej: La unidad olía a gasolina, los cinturones de seguridad estaban defectuosos y la ventana no cerraba bien." data-required="true" maxlength="1000"></textarea>
+                    <div class="error-message"></div>
+                </div>
+            </div>
+
+            <div id="seccion-Otro" class="queja-especifica">
+                <h3>Otros Detalles</h3>
+                <div class="form-group">
+                    <label for="detalles_otro">Describe detalladamente tu queja:</label>
+                    <textarea id="detalles_otro" name="detalles_otro" rows="5" data-required="true" placeholder="Por favor, sé lo más específico posible." maxlength="1000"></textarea>
+                    <div class="error-message"></div>
+                </div>
+            </div>
+
+            <input type="hidden" id="latitud" name="latitud">
+            <input type="hidden" id="longitud" name="longitud">
+            <div id="ubicacion-status"></div> <button type="submit" id="submitBtn">Enviar Queja</button>
+        </form>
     </div>
 
-    <h2>Quejas Transporte de Personal</h2>
+    <div id="notification-container"></div>
 
-    <form id="form-queja">
-      <div class="form-group">
-        <label for="nombre_usuario">Tu Nombre Completo:</label>
-        <input type="text" id="nombre_usuario" name="nombre_usuario" placeholder="Ej: Juan Pérez González" required minlength="2" maxlength="100">
-        <div class="error-message"></div>
-      </div>
+    <script>
+        const tipoQuejaSelect = document.getElementById('tipo');
+        const seccionesEspecificas = document.querySelectorAll('.queja-especifica');
+        const formQueja = document.getElementById('form-queja');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const submitBtn = document.getElementById('submitBtn');
+        const notificationContainer = document.getElementById('notification-container');
 
-      <div class="form-group">
-        <label for="empresa">Empresa:</label>
-        <select name="empresa" id="empresa" required>
-          <option value="">Selecciona una empresa</option>
-          <option value="abc">ABC Technologies</option>
-          <option value="leoch">Leoch Battery</option>
-          <option value="gerber">Gerber</option>
-          <option value="phillips">Phillips</option>
-        </select>
-        <div class="error-message"></div>
-      </div>
+        // ELEMENTOS PARA GEOLOCALIZACIÓN
+        const latitudInput = document.getElementById('latitud');
+        const longitudInput = document.getElementById('longitud');
+        const ubicacionStatus = document.getElementById('ubicacion-status');
+        let geolocationObtained = false; // Flag para saber si la ubicación ya fue obtenida
 
-      <div class="form-group">
-        <label for="tipo">Tipo de queja:</label>
-        <select name="tipo" id="tipo" required>
-          <option value="">Selecciona el tipo de queja</option>
-          <option value="Retraso">Retraso de Unidad</option>
-          <option value="Mal trato">Mal Trato / Mala Actitud del Conductor</option>
-          <option value="Inseguridad">Inseguridad / Conducción Peligrosa</option>
-          <option value="Unidad en mal estado">Unidad en Mal Estado</option>
-          <option value="Otro">Otro (especificar)</option>
-        </select>
-        <div class="error-message"></div>
-      </div>
+        // Función para mostrar notificaciones flotantes
+        function showNotification(message, type = 'success', duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
 
-      <!-- Las secciones específicas se mantienen igual... -->
-      <div id="seccion-Retraso" class="queja-especifica">
-        <h3>Detalles de Retraso de Unidad</h3>
-        <div class="form-group">
-            <label for="direccion_subida">Dirección de Recolección (Calle, número, colonia):</label>
-            <input type="text" id="direccion_subida" name="direccion_subida" placeholder="Ej: Av. Siempre Viva 123, Centro" data-required="true" maxlength="200">
-            <div class="error-message"></div>
-        </div>
-        <div class="form-group">
-            <label for="hora_programada">Hora de Recolección Programada (aprox.):</label>
-            <input type="time" id="hora_programada" name="hora_programada" data-required="true">
-            <div class="error-message"></div>
-        </div>
-        <div class="form-group">
-            <label for="hora_llegada">Hora Real de Llegada de la Unidad:</label>
-            <input type="time" id="hora_llegada" name="hora_llegada" data-required="true">
-            <div class="error-message"></div>
-        </div>
-        <div class="form-group">
-            <label for="detalles_retraso">Describe brevemente lo ocurrido con el retraso:</label>
-            <textarea id="detalles_retraso" name="detalles_retraso" rows="3" placeholder="Ej: La unidad llegó 20 minutos tarde sin aviso." data-required="true" maxlength="500"></textarea>
-            <div class="error-message"></div>
-        </div>
-      </div>
+            notificationContainer.appendChild(notification);
+            setTimeout(() => notification.classList.add('show'), 100);
 
-      <!-- Resto de secciones específicas se mantienen igual... -->
-      <div id="seccion-Mal_trato" class="queja-especifica">
-        <h3>Detalles de Mal Trato / Mala Actitud</h3>
-        <div class="form-group">
-            <label for="nombre_conductor_maltrato">Si lo sabes, nombre o número de unidad del conductor:</label>
-            <input type="text" id="nombre_conductor_maltrato" name="nombre_conductor_maltrato" placeholder="Ej: Conductor Juan Pérez / Unidad #456" maxlength="100">
-        </div>
-        <div class="form-group">
-            <label for="detalles_maltrato">Describe detalladamente lo ocurrido:</label>
-            <textarea id="detalles_maltrato" name="detalles_maltrato" rows="4" placeholder="Ej: El conductor usó lenguaje inapropiado y se negó a abrir la puerta en el punto acordado." data-required="true" maxlength="1000"></textarea>
-            <div class="error-message"></div>
-        </div>
-      </div>
+            setTimeout(() => {
+                notification.classList.remove('show');
+                notification.addEventListener('transitionend', () => notification.remove(), { once: true });
+            }, duration);
 
-      <div id="seccion-Inseguridad" class="queja-especifica">
-        <h3>Detalles de Inseguridad / Conducción Peligrosa</h3>
-        <div class="form-group">
-            <label for="detalles_inseguridad">Describe la situación de inseguridad o el comportamiento peligroso:</label>
-            <textarea id="detalles_inseguridad" name="detalles_inseguridad" rows="4" placeholder="Ej: El conductor excedía el límite de velocidad y usaba el celular mientras manejaba." data-required="true" maxlength="1000"></textarea>
-            <div class="error-message"></div>
-        </div>
-        <div class="form-group">
-            <label for="ubicacion_inseguridad">¿Dónde ocurrió el incidente (aprox. calle, cruce)?</label>
-            <input type="text" id="ubicacion_inseguridad" name="ubicacion_inseguridad" placeholder="Ej: En la intersección de Av. Central y Calle Juárez" maxlength="200">
-        </div>
-      </div>
-
-      <div id="seccion-Unidad_en_mal_estado" class="queja-especifica">
-          <h3>Detalles de Unidad en Mal Estado</h3>
-          <div class="form-group">
-              <label for="numero_unidad_malestado">Número de Unidad (si lo conoces):</label>
-              <input type="text" id="numero_unidad_malestado" name="numero_unidad_malestado" placeholder="Ej: Unidad 789" maxlength="50">
-          </div>
-          <div class="form-group">
-              <label for="tipo_falla">Tipo de falla o daño:</label>
-              <input type="text" id="tipo_falla" name="tipo_falla" placeholder="Ej: Asientos rotos, Aire acondicionado no funciona, Ruido extraño en el motor" data-required="true" maxlength="200">
-              <div class="error-message"></div>
-          </div>
-          <div class="form-group">
-              <label for="detalles_malestado">Describe el estado de la unidad y si afectó el servicio:</label>
-              <textarea id="detalles_malestado" name="detalles_malestado" rows="4" placeholder="Ej: La unidad olía a gasolina, los cinturones de seguridad estaban defectuosos y la ventana no cerraba bien." data-required="true" maxlength="1000"></textarea>
-              <div class="error-message"></div>
-          </div>
-      </div>
-
-      <div id="seccion-Otro" class="queja-especifica">
-        <h3>Otros Detalles</h3>
-        <div class="form-group">
-            <label for="detalles_otro">Describe detalladamente tu queja:</label>
-            <textarea id="detalles_otro" name="detalles_otro" rows="5" data-required="true" placeholder="Por favor, sé lo más específico posible." maxlength="1000"></textarea>
-            <div class="error-message"></div>
-        </div>
-      </div>
-
-      <button type="submit" id="submitBtn">Enviar Queja</button>
-    </form>
-  </div>
-
-  <script>
-    const tipoQuejaSelect = document.getElementById('tipo');
-    const seccionesEspecificas = document.querySelectorAll('.queja-especifica');
-    const formQueja = document.getElementById('form-queja');
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const submitBtn = document.getElementById('submitBtn');
-
-    // NUEVA: Función para mostrar notificaciones
-    function showNotification(message, type = 'success') {
-      // Crear elemento de notificación
-      const notification = document.createElement('div');
-      notification.className = `notification ${type}`;
-      notification.textContent = message;
-      
-      // Agregar al DOM
-      document.body.appendChild(notification);
-      
-      // Mostrar con animación
-      setTimeout(() => notification.classList.add('show'), 100);
-      
-      // Ocultar después de 5 segundos
-      setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => document.body.removeChild(notification), 300);
-      }, 5000);
-    }
-
-    // NUEVA: Función de validación en tiempo real
-    function validateField(field) {
-      const formGroup = field.closest('.form-group');
-      const errorMessage = formGroup.querySelector('.error-message');
-      let isValid = true;
-      let message = '';
-
-      // Limpiar estados previos
-      formGroup.classList.remove('error', 'success');
-      errorMessage.style.display = 'none';
-
-      // Validaciones específicas
-      if (field.hasAttribute('required') && !field.value.trim()) {
-        isValid = false;
-        message = 'Este campo es requerido.';
-      } else if (field.type === 'text' && field.hasAttribute('minlength')) {
-        const minLength = parseInt(field.getAttribute('minlength'));
-        if (field.value.trim().length < minLength) {
-          isValid = false;
-          message = `Debe tener al menos ${minLength} caracteres.`;
+            notification.addEventListener('click', () => {
+                notification.classList.remove('show');
+                notification.addEventListener('transitionend', () => notification.remove(), { once: true });
+            });
         }
-      } else if (field.type === 'text' && field.hasAttribute('maxlength')) {
-        const maxLength = parseInt(field.getAttribute('maxlength'));
-        if (field.value.length > maxLength) {
-          isValid = false;
-          message = `Máximo ${maxLength} caracteres.`;
+
+        // Función de validación en tiempo real por campo
+        function validateField(field) {
+            const formGroup = field.closest('.form-group');
+            const errorMessage = formGroup ? formGroup.querySelector('.error-message') : null;
+            let isValid = true;
+            let message = '';
+
+            if (formGroup) {
+                formGroup.classList.remove('error', 'success');
+            }
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+            }
+
+            if (field.hasAttribute('required') && !field.value.trim()) {
+                isValid = false;
+                message = 'Este campo es requerido.';
+            } else if (field.type === 'text' || field.tagName === 'TEXTAREA') {
+                const minLength = parseInt(field.getAttribute('minlength')) || 0;
+                const maxLength = parseInt(field.getAttribute('maxlength')) || Infinity;
+                if (field.value.trim().length < minLength) {
+                    isValid = false;
+                    message = `Debe tener al menos ${minLength} caracteres.`;
+                } else if (field.value.length > maxLength) {
+                    isValid = false;
+                    message = `Máximo ${maxLength} caracteres.`;
+                }
+            }
+
+            if (formGroup) {
+                if (!isValid) {
+                    formGroup.classList.add('error');
+                    if (errorMessage) {
+                        errorMessage.textContent = message;
+                        errorMessage.style.display = 'block';
+                    }
+                } else if (field.value.trim()) {
+                    formGroup.classList.add('success');
+                }
+            }
+            return isValid;
         }
-      } else if (field.tagName === 'TEXTAREA' && field.hasAttribute('maxlength')) {
-        const maxLength = parseInt(field.getAttribute('maxlength'));
-        if (field.value.length > maxLength) {
-          isValid = false;
-          message = `Máximo ${maxLength} caracteres.`;
-        }
-      }
 
-      // Aplicar estados visuales
-      if (!isValid) {
-        formGroup.classList.add('error');
-        errorMessage.textContent = message;
-        errorMessage.style.display = 'block';
-      } else if (field.value.trim()) {
-        formGroup.classList.add('success');
-      }
-
-      return isValid;
-    }
-
-    // NUEVA: Agregar validación en tiempo real a todos los campos
-    document.querySelectorAll('input, textarea, select').forEach(field => {
-      field.addEventListener('blur', () => validateField(field));
-      field.addEventListener('input', () => {
-        // Validar después de un pequeño delay para mejor UX
-        clearTimeout(field.validationTimeout);
-        field.validationTimeout = setTimeout(() => validateField(field), 500);
-      });
-    });
-
-    // NUEVA: Función mejorada de sanitización del lado cliente
-    function sanitizeInput(value) {
-      return value.trim()
-        .replace(/[<>]/g, '') // Eliminar caracteres potencialmente peligrosos
-        .substring(0, 1000); // Limitar longitud máxima
-    }
-
-    // Función existente mejorada para mostrar/ocultar secciones
-    function mostrarSeccionQueja() {
-      const tipoSeleccionado = tipoQuejaSelect.value;
-
-      // Limpiar validaciones previas
-      document.querySelectorAll('.form-group').forEach(group => {
-        group.classList.remove('error', 'success');
-        const errorMsg = group.querySelector('.error-message');
-        if (errorMsg) errorMsg.style.display = 'none';
-      });
-
-      // Ocultar todas las secciones específicas y limpiar campos
-      seccionesEspecificas.forEach(seccion => {
-        seccion.style.display = 'none';
-        seccion.querySelectorAll('input, textarea, select').forEach(field => {
-          field.value = '';
-          field.removeAttribute('required');
-        });
-      });
-
-      // Mostrar la sección correspondiente
-      if (tipoSeleccionado && tipoSeleccionado !== '') {
-        const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_'); 
-        const seccionAMostrar = document.getElementById(idSeccion);
-        if (seccionAMostrar) {
-          seccionAMostrar.style.display = 'block';
-          // Agregar atributo required a campos marcados como data-required
-          seccionAMostrar.querySelectorAll('[data-required="true"]').forEach(field => {
-            field.setAttribute('required', 'required');
-          });
-        }
-      }
-    }
-
-    // NUEVA: Función de validación completa del formulario
-    function validateCompleteForm() {
-      let isValid = true;
-      const requiredFields = formQueja.querySelectorAll('[required]');
-      
-      requiredFields.forEach(field => {
-        if (!validateField(field)) {
-          isValid = false;
-        }
-      });
-
-      return isValid;
-    }
-
-    // Event listeners existentes
-    tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
-    document.addEventListener('DOMContentLoaded', mostrarSeccionQueja);
-
-    // ENVÍO DEL FORMULARIO MEJORADO
-    formQueja.addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      // Validar formulario completo antes de enviar
-      if (!validateCompleteForm()) {
-        showNotification('Por favor, corrige los errores en el formulario.', 'error');
-        return;
-      }
-
-      // Mostrar indicador de carga
-      loadingOverlay.style.display = 'flex';
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Enviando...';
-
-      // Recolectar y sanitizar datos
-      const formData = new FormData(e.target);
-      const data = {};
-      for (let [key, value] of formData.entries()) {
-        data[key] = sanitizeInput(value);
-      }
-
-      try {
-        const res = await fetch('/enviar-queja', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(data)
+        document.querySelectorAll('input, textarea, select').forEach(field => {
+            field.addEventListener('blur', () => validateField(field));
+            field.addEventListener('input', () => {
+                clearTimeout(field.validationTimeout);
+                field.validationTimeout = setTimeout(() => validateField(field), 500);
+            });
         });
 
-        const responseData = await res.json();
-
-        if (res.ok) {
-          showNotification('¡Queja enviada con éxito! Gracias por tu retroalimentación.', 'success');
-          formQueja.reset();
-          mostrarSeccionQueja();
-          
-          // Limpiar todos los estados de validación
-          document.querySelectorAll('.form-group').forEach(group => {
-            group.classList.remove('error', 'success');
-            const errorMsg = group.querySelector('.error-message');
-            if (errorMsg) errorMsg.style.display = 'none';
-          });
-        } else {
-          showNotification(responseData.error || 'Error al enviar la queja', 'error');
+        // Función de sanitización del lado cliente (idéntica a la del backend)
+        function sanitizeInput(value) {
+            if (typeof value !== 'string') return value;
+            return value.trim()
+                .replace(/[<>'"&]/g, (char) => {
+                    switch (char) {
+                        case '<': return '&lt;';
+                        case '>': return '&gt;';
+                        case '&': return '&amp;';
+                        case "'": return '&#x27;';
+                        case '"': return '&quot;';
+                        default: return '';
+                    }
+                });
         }
-      } catch (error) {
-        console.error('Error al enviar la queja:', error);
-        showNotification('Hubo un problema de conexión. Inténtalo de nuevo.', 'error');
-      } finally {
-        // Ocultar indicador de carga
-        loadingOverlay.style.display = 'none';
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Enviar Queja';
-      }
-    });
 
-    // NUEVA: Prevenir envío múltiple accidental
-    let isSubmitting = false;
-    formQueja.addEventListener('submit', function(e) {
-      if (isSubmitting) {
-        e.preventDefault();
-        return false;
-      }
-      isSubmitting = true;
-      
-      // Reset flag después de 3 segundos como failsafe
-      setTimeout(() => {
-        isSubmitting = false;
-      }, 3000);
-    });
+        // Función para mostrar/ocultar secciones específicas del formulario
+        function mostrarSeccionQueja() {
+            const tipoSeleccionado = tipoQuejaSelect.value;
 
-    // NUEVA: Guardar progreso en sessionStorage (opcional)
-    function saveProgress() {
-      const formData = new FormData(formQueja);
-      const data = {};
-      for (let [key, value] of formData.entries()) {
-        if (value.trim()) data[key] = value;
-      }
-      sessionStorage.setItem('queja-progress', JSON.stringify(data));
-    }
+            document.querySelectorAll('.form-group').forEach(group => {
+                group.classList.remove('error', 'success');
+                const errorMsg = group.querySelector('.error-message');
+                if (errorMsg) errorMsg.style.display = 'none';
+            });
 
-    function loadProgress() {
-      const saved = sessionStorage.getItem('queja-progress');
-      if (saved) {
-        try {
-          const data = JSON.parse(saved);
-          Object.entries(data).forEach(([key, value]) => {
-            const field = document.querySelector(`[name="${key}"]`);
-            if (field) field.value = value;
-          });
-          mostrarSeccionQueja();
-        } catch (e) {
-          console.log('No se pudo cargar el progreso guardado');
+            seccionesEspecificas.forEach(seccion => {
+                seccion.style.display = 'none';
+                seccion.querySelectorAll('input, textarea, select').forEach(field => {
+                    field.value = '';
+                    field.removeAttribute('required');
+                });
+            });
+
+            if (tipoSeleccionado && tipoSeleccionado !== '') {
+                const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
+                const seccionAMostrar = document.getElementById(idSeccion);
+                if (seccionAMostrar) {
+                    seccionAMostrar.style.display = 'block';
+                    seccionAMostrar.querySelectorAll('[data-required="true"]').forEach(field => {
+                        field.setAttribute('required', 'required');
+                        validateField(field);
+                    });
+                }
+            }
         }
-      }
-    }
 
-    // Cargar progreso al iniciar
-    document.addEventListener('DOMContentLoaded', loadProgress);
+        // Función de validación completa del formulario
+        function validateCompleteForm() {
+            let isValid = true;
+            // Validar campos generales
+            formQueja.querySelectorAll('#nombre_usuario, #empresa, #tipo').forEach(field => {
+                if (!validateField(field)) {
+                    isValid = false;
+                }
+            });
 
-    // Guardar progreso cada 30 segundos
-    setInterval(saveProgress, 30000);
+            // Validar campos de la sección activa
+            const tipoSeleccionado = tipoQuejaSelect.value;
+            if (tipoSeleccionado && tipoSeleccionado !== '') {
+                const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
+                const seccionActiva = document.getElementById(idSeccion);
+                if (seccionActiva) {
+                    seccionActiva.querySelectorAll('[data-required="true"]').forEach(field => {
+                        if (!validateField(field)) {
+                            isValid = false;
+                        }
+                    });
+                }
+            }
+            return isValid;
+        }
 
-    // Limpiar progreso cuando se envía exitosamente
-    formQueja.addEventListener('submit', () => {
-      setTimeout(() => {
-        sessionStorage.removeItem('queja-progress');
-      }, 1000);
-    });
-  </script>
+        // Función para obtener la ubicación (modificada para mejor UX)
+        function obtenerUbicacion() {
+            // Muestra el estado de la ubicación
+            ubicacionStatus.style.display = 'block';
+
+            if (navigator.geolocation) {
+                ubicacionStatus.textContent = 'Obteniendo tu ubicación...';
+                ubicacionStatus.className = 'ubicacion-status loading';
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        latitudInput.value = position.coords.latitude;
+                        longitudInput.value = position.coords.longitude;
+                        ubicacionStatus.textContent = 'Ubicación obtenida.';
+                        ubicacionStatus.className = 'ubicacion-status success';
+                        geolocationObtained = true; // La ubicación se obtuvo
+                        showNotification('Ubicación obtenida con éxito.', 'success', 3000);
+                        console.log('Ubicación obtenida:', position.coords.latitude, position.coords.longitude);
+                    },
+                    (error) => {
+                        console.error('Error al obtener la ubicación:', error);
+                        latitudInput.value = ''; // Limpiar si hay error previo
+                        longitudInput.value = '';
+                        geolocationObtained = false; // La ubicación NO se obtuvo
+
+                        let errorMessage = 'No se pudo obtener la ubicación.';
+                        let statusClass = 'ubicacion-status error';
+                        let notificationType = 'error';
+
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = 'Ubicación denegada por el usuario.';
+                                statusClass = 'ubicacion-status denied'; // Estilo de advertencia
+                                notificationType = 'warning';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = 'Información de ubicación no disponible.';
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = 'Tiempo de espera agotado para obtener la ubicación.';
+                                break;
+                            case error.UNKNOWN_ERROR:
+                                errorMessage = 'Error desconocido al obtener la ubicación.';
+                                break;
+                        }
+                        ubicacionStatus.textContent = errorMessage;
+                        ubicacionStatus.className = statusClass;
+                        // Notificación flotante: informa que la queja se enviará sin ubicación
+                        showNotification(errorMessage + ' La queja se enviará sin ubicación.', notificationType, 7000);
+                    },
+                    {
+                        enableHighAccuracy: true, // Solicita la mejor precisión posible
+                        timeout: 15000,           // Esperar hasta 15 segundos para la ubicación
+                        maximumAge: 0             // No usar una posición en caché
+                    }
+                );
+            } else {
+                ubicacionStatus.textContent = 'Tu navegador no soporta la geolocalización.';
+                ubicacionStatus.className = 'ubicacion-status error';
+                showNotification('Geolocalización no soportada por este navegador.', 'error', 5000);
+                console.warn('Geolocalización no soportada por el navegador.');
+            }
+        }
+
+
+        // Cargar progreso y obtener ubicación al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            mostrarSeccionQueja(); // Asegura el estado inicial del formulario y valida campos requeridos visibles
+            obtenerUbicacion(); // Intenta obtener la ubicación al cargar la página
+            loadProgress(); // Carga el progreso guardado
+        });
+
+        // Event listeners existentes
+        tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
+
+        // Guardar progreso cada 30 segundos
+        function saveProgress() {
+            const formData = new FormData(formQueja);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                if (typeof value === 'string' && value.trim()) {
+                    data[key] = value;
+                } else if (typeof value !== 'string') {
+                    data[key] = value;
+                }
+            }
+            // Incluir el estado actual de la sección activa para recargarla correctamente
+            data.current_queja_type = tipoQuejaSelect.value;
+            
+            sessionStorage.setItem('queja-progress', JSON.stringify(data));
+        }
+
+        function loadProgress() {
+            const saved = sessionStorage.getItem('queja-progress');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    Object.entries(data).forEach(([key, value]) => {
+                        const field = document.querySelector(`[name="${key}"]`);
+                        if (field) {
+                            field.value = value;
+                        }
+                    });
+                    if (data.current_queja_type) {
+                        tipoQuejaSelect.value = data.current_queja_type;
+                    }
+                    mostrarSeccionQueja();
+                    document.querySelectorAll('input, textarea, select').forEach(field => validateField(field));
+
+                    showNotification('Progreso de la queja cargado.', 'info', 3000);
+                } catch (e) {
+                    console.log('No se pudo cargar el progreso guardado:', e);
+                    sessionStorage.removeItem('queja-progress');
+                }
+            }
+        }
+
+        setInterval(saveProgress, 30000);
+
+        // Limpiar progreso cuando se envía exitosamente
+        formQueja.addEventListener('submit', () => {
+            setTimeout(() => {
+                sessionStorage.removeItem('queja-progress');
+            }, 1000);
+        });
+
+
+        // ENVÍO DEL FORMULARIO MEJORADO
+        let isSubmitting = false; // Bandera para prevenir doble envío
+
+        formQueja.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            // Prevenir doble envío
+            if (isSubmitting) {
+                showNotification('La queja ya se está enviando. Por favor, espera.', 'info', 3000);
+                return;
+            }
+
+            // Validar formulario completo antes de enviar
+            if (!validateCompleteForm()) {
+                showNotification('Por favor, corrige los errores en el formulario.', 'error');
+                return;
+            }
+
+            isSubmitting = true; // Activar bandera
+            
+            // Mostrar indicador de carga
+            loadingOverlay.style.display = 'flex';
+            submitBtn.disabled = true;
+
+            // Recolectar y sanitizar datos
+            const formData = new FormData(e.target);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                data[key] = sanitizeInput(value);
+            }
+
+            try {
+                const res = await fetch('/enviar-queja', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const responseData = await res.json();
+
+                if (res.ok && responseData.success) {
+                    showNotification('¡Queja enviada con éxito! Gracias por tu retroalimentación.', 'success');
+                    formQueja.reset(); // Limpia el formulario
+                    mostrarSeccionQueja(); // Resetea la visibilidad y requeridos
+
+                    // Limpiar todos los estados de validación visuales después del reset
+                    document.querySelectorAll('.form-group').forEach(group => {
+                        group.classList.remove('error', 'success');
+                        const errorMsg = group.querySelector('.error-message');
+                        if (errorMsg) errorMsg.style.display = 'none';
+                    });
+                } else {
+                    // Si el backend envía un error específico, úsalo
+                    showNotification(responseData.error || 'Error al enviar la queja', 'error');
+                }
+            } catch (error) {
+                console.error('Error al enviar la queja:', error);
+                showNotification('Hubo un problema de conexión. Inténtalo de nuevo.', 'error');
+            } finally {
+                // Ocultar indicador de carga
+                loadingOverlay.style.display = 'none';
+                submitBtn.disabled = false;
+                isSubmitting = false; // Restablecer bandera
+            }
+        });
+    </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// server.js - Mejoras sugeridas
+// server.js - Mejoras sugeridas (con geolocalización agregada)
 
 require('dotenv').config();
 const express = require('express');
@@ -19,16 +19,16 @@ function checkRateLimit(ip) {
         rateLimit[ip] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW };
         return true;
     }
-    
+
     if (now > rateLimit[ip].resetTime) {
         rateLimit[ip] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW };
         return true;
     }
-    
+
     if (rateLimit[ip].count >= MAX_REQUESTS) {
         return false;
     }
-    
+
     rateLimit[ip].count++;
     return true;
 }
@@ -78,8 +78,9 @@ function obtenerTimestamp() {
     };
     
     const formattedDate = new Date(now).toLocaleString('es-MX', options);
+    // Asumiendo formato DD/MM/YYYY HH:MM:SS de es-MX
     const [datePart, timePart] = formattedDate.split(' ');
-    const [day, month, year] = datePart.split('/');
+    const [day, month, year] = datePart.split('/'); 
     return `${year}-${month}-${day} ${timePart}`;
 }
 
@@ -116,7 +117,97 @@ function validarCamposRequeridos(data) {
     return null;
 }
 
-// --- CONFIGURACIÓN DE GOOGLE SHEETS (SIN CAMBIOS) ---
+/**
+ * Construye los datos de la fila y determina el nombre de la pestaña
+ * según el tipo de queja, incluyendo geolocalización.
+ * @param {string} tipo - El tipo de queja seleccionado.
+ * @param {object} data - Todos los datos del formulario, incluyendo latitud y longitud.
+ * @returns {object|null} - Objeto con 'tabName' y 'rowValues', o null si el tipo no es reconocido.
+ */
+function construirDatosFila(tipo, data) {
+    const timestamp = obtenerTimestamp();
+    const { nombre_usuario, empresa, latitud, longitud } = data; // <<-- ¡AQUÍ: Extrae latitud y longitud!
+
+    // Convertir latitud/longitud a string o dejar vacío/N/D si no están presentes
+    const latitudStr = latitud ? String(latitud) : 'N/D';
+    const longitudStr = longitud ? String(longitud) : 'N/D';
+
+    // El orden de los elementos en 'rowValues' DEBE coincidir EXACTAMENTE
+    // con el orden de los encabezados en la primera fila de la pestaña de Google Sheets.
+    const configuraciones = {
+        'Retraso': {
+            tabName: 'RetrasoUnidad', // Nombre exacto de tu pestaña en Google Sheets
+            rowValues: [
+                timestamp,
+                nombre_usuario,
+                empresa,
+                tipo,
+                latitudStr,  // <<-- ¡NUEVA COLUMNA!
+                longitudStr, // <<-- ¡NUEVA COLUMNA!
+                data.direccion_subida || '',
+                data.hora_programada || '',
+                data.hora_llegada || '',
+                data.detalles_retraso || ''
+            ]
+        },
+        'Mal trato': {
+            tabName: 'MalTrato', // Nombre exacto de tu pestaña en Google Sheets
+            rowValues: [
+                timestamp,
+                nombre_usuario,
+                empresa,
+                tipo,
+                latitudStr,  // <<-- ¡NUEVA COLUMNA!
+                longitudStr, // <<-- ¡NUEVA COLUMNA!
+                data.nombre_conductor_maltrato || '',
+                data.detalles_maltrato || ''
+            ]
+        },
+        'Inseguridad': {
+            tabName: 'Inseguridad', // Nombre exacto de tu pestaña en Google Sheets
+            rowValues: [
+                timestamp,
+                nombre_usuario,
+                empresa,
+                tipo,
+                latitudStr,  // <<-- ¡NUEVA COLUMNA!
+                longitudStr, // <<-- ¡NUEVA COLUMNA!
+                data.detalles_inseguridad || '',
+                data.ubicacion_inseguridad || ''
+            ]
+        },
+        'Unidad en mal estado': {
+            tabName: 'UnidadMalEstado', // Nombre exacto de tu pestaña en Google Sheets
+            rowValues: [
+                timestamp,
+                nombre_usuario,
+                empresa,
+                tipo,
+                latitudStr,  // <<-- ¡NUEVA COLUMNA!
+                longitudStr, // <<-- ¡NUEVA COLUMNA!
+                data.numero_unidad_malestado || '',
+                data.tipo_falla || '',
+                data.detalles_malestado || ''
+            ]
+        },
+        'Otro': {
+            tabName: 'Otros', // Nombre exacto de tu pestaña en Google Sheets
+            rowValues: [
+                timestamp,
+                nombre_usuario,
+                empresa,
+                tipo,
+                latitudStr,  // <<-- ¡NUEVA COLUMNA!
+                longitudStr, // <<-- ¡NUEVA COLUMNA!
+                data.detalles_otro || ''
+            ]
+        }
+    };
+
+    return configuraciones[tipo] || null; // Devuelve la configuración o null si el tipo no existe
+}
+
+// --- CONFIGURACIÓN DE GOOGLE SHEETS API (SIN CAMBIOS) ---
 let parsedCredentials;
 try {
     parsedCredentials = JSON.parse(GOOGLE_CREDENTIALS_JSON);
@@ -149,7 +240,8 @@ app.post('/enviar-queja', async (req, res) => {
         }
 
         // Validación con sanitización
-        const validationError = validarCamposRequeridos(req.body);
+        // req.body se modifica in-place por validarCamposRequeridos
+        const validationError = validarCamposRequeridos(req.body); 
         if (validationError) {
             console.warn(`⚠️ Validación fallida: ${validationError}`);
             return res.status(400).json({
@@ -158,14 +250,9 @@ app.post('/enviar-queja', async (req, res) => {
             });
         }
 
-        // Sanitizar todos los campos de texto
-        const sanitizedData = {};
-        for (const [key, value] of Object.entries(req.body)) {
-            sanitizedData[key] = typeof value === 'string' ? sanitizeInput(value) : value;
-        }
-
-        const { tipo } = sanitizedData;
-        const configuracionFila = construirDatosFila(tipo, sanitizedData);
+        // Ya está sanitizado por validarCamposRequeridos
+        const { tipo } = req.body; 
+        const configuracionFila = construirDatosFila(tipo, req.body); // Usa el req.body ya sanitizado
         
         if (!configuracionFila) {
             console.warn(`⚠️ Tipo de queja no reconocido: ${tipo}`);
@@ -192,20 +279,23 @@ app.post('/enviar-queja', async (req, res) => {
 
         // Log mejorado
         console.log(`✅ Queja registrada exitosamente:`);
-        console.log(`   - IP: ${clientIP}`);
-        console.log(`   - Usuario: ${sanitizedData.nombre_usuario}`);
-        console.log(`   - Empresa: ${sanitizedData.empresa}`);
-        console.log(`   - Tipo: ${tipo}`);
-        console.log(`   - Timestamp: ${obtenerTimestamp()}`);
+        console.log(`   - IP: ${clientIP}`);
+        console.log(`   - Usuario: ${req.body.nombre_usuario}`);
+        console.log(`   - Empresa: ${req.body.empresa}`);
+        console.log(`   - Tipo: ${tipo}`);
+        console.log(`   - Ubicación: ${req.body.latitud || 'N/D'}, ${req.body.longitud || 'N/D'}`); // Log de ubicación
+        console.log(`   - Timestamp: ${obtenerTimestamp()}`);
 
         res.status(200).json({
             success: true,
             message: "¡Queja registrada con éxito!",
             data: {
                 timestamp: rowValues[0],
-                usuario: sanitizedData.nombre_usuario,
-                empresa: sanitizedData.empresa,
-                tipo: tipo
+                usuario: req.body.nombre_usuario,
+                empresa: req.body.empresa,
+                tipo: tipo,
+                latitud: req.body.latitud || null, // Incluir en la respuesta si se quiere
+                longitud: req.body.longitud || null
             }
         });
 
@@ -219,6 +309,8 @@ app.post('/enviar-queja', async (req, res) => {
             errorMessage = "Error de permisos con Google Sheets.";
         } else if (error.message && error.message.includes('Unable to parse range')) {
             errorMessage = "Error de configuración de hoja de cálculo.";
+        } else if (error.code === 'ENOENT') {
+            errorMessage = "Error de configuración del servidor.";
         }
 
         res.status(statusCode).json({
@@ -255,4 +347,10 @@ app.listen(PORT, () => {
     console.log(`🔒 Ambiente: ${NODE_ENV}`);
     console.log(`⏰ Iniciado: ${obtenerTimestamp()}`);
     console.log('🚀 ====================================');
+    console.log('\n📝 Rutas disponibles:');
+    console.log(`   GET  / - Formulario principal`);
+    console.log(`   POST /enviar-queja - Enviar queja`);
+    console.log(`   GET  /health - Estado del servidor`);
+    console.log(`   GET  /stats - Estadísticas de rate limiting`);
+    console.log('\n✅ Servidor listo para recibir quejas!');
 });
