@@ -46,12 +46,8 @@ function checkRateLimit(ip) {
 // CORS básico: Permite o restringe solicitudes de otros dominios.
 // `process.env.CORS_ORIGIN` debería ser la URL de tu frontend si está en un dominio diferente.
 app.use((req, res, next) => {
-    // Es buena práctica usar una variable para la URL de Railway para no repetirla
-    const railwayAppUrl = `https://${process.env.RAILWAY_STATIC_URL || 'your-default-railway-domain.up.railway.app'}`; // Reemplaza con tu URL real o una variable de env de Railway
-    const allowedOrigins = process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN, railwayAppUrl] : ['http://localhost:3000', railwayAppUrl];
+    const allowedOrigins = process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : ['http://localhost:3000', 'https://plataforma-quejas-tecsa.up.railway.app']; // Añadido el dominio de Railway
     const origin = req.headers.origin;
-
-    // Si el origen de la solicitud está en la lista de orígenes permitidos
     if (allowedOrigins.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     }
@@ -158,10 +154,9 @@ function validarCamposRequeridos(data) {
     }
     
     // Validaciones específicas adicionales para 'numero_empleado'
-    if (data.numero_empleado.length < 4) { // Ajusta el mínimo de caracteres para número de empleado (4 en HTML)
+    if (data.numero_empleado.length < 4) { // Ajusta el mínimo de caracteres para número de empleado
         return 'El número de empleado debe tener al menos 4 caracteres.';
     }
-    // ¡Esta es la validación que estaba fallando!
     if (!/^\d+$/.test(data.numero_empleado)) { // Regex para verificar que solo contenga dígitos
         return 'El número de empleado debe contener solo números.';
     }
@@ -265,20 +260,6 @@ function construirDatosFila(tipo, data) {
     return configuraciones[tipo] || null; // Devuelve la configuración o null si el tipo no existe
 }
 
-// --- CONFIGURACIÓN DE GOOGLE SHEETS API ---
-let parsedCredentials;
-try {
-    parsedCredentials = JSON.parse(GOOGLE_CREDENTIALS_JSON);
-} catch (e) {
-    console.error('❌ ERROR CRÍTICO: GOOGLE_CREDENTIALS no es un JSON válido.');
-    process.exit(1);
-}
-
-const auth = new google.auth.GoogleAuth({
-    credentials: parsedCredentials, // Las credenciales se leen desde la variable de entorno
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'], // Alcance para acceder a hojas de cálculo
-});
-
 // --- RUTAS DEL SERVIDOR ---
 
 // Ruta GET para servir el formulario principal (index.html)
@@ -304,7 +285,7 @@ app.post('/enviar-queja', async (req, res) => {
         const validationError = validarCamposRequeridos(req.body); 
         if (validationError) {
             console.warn(`⚠️ Validación fallida: ${validationError}`);
-            return res.status(400).json({ // Detiene la ejecución y devuelve 400
+            return res.status(400).json({
                 error: validationError,
                 success: false
             });
@@ -312,7 +293,7 @@ app.post('/enviar-queja', async (req, res) => {
 
         const { tipo } = req.body; // 'tipo' ya está sanitizado a este punto
 
-        // Construir datos para la fila usando la función auxiliar (req.body ya está validado y sanitizado)
+        // Construir datos para la fila usando la función auxiliar (req.body ya está sanitizado)
         const configuracionFila = construirDatosFila(tipo, req.body);
         
         if (!configuracionFila) {
@@ -340,7 +321,7 @@ app.post('/enviar-queja', async (req, res) => {
             },
         };
 
-        const response = await sheets.spreadsheets.values.append(request); // <<-- CORRECCIÓN: sheets.spreadsheets.values.append
+        const response = await sheets.sheets.values.append(request); // <<-- ¡CORRECCIÓN: sheets.sheets.values.append!
 
         // Log de éxito en la consola del servidor
         console.log(`✅ Queja registrada exitosamente en Google Sheets:`);
@@ -377,11 +358,10 @@ app.post('/enviar-queja', async (req, res) => {
             errorMessage = "Error de permisos con Google Sheets. Asegúrate de que la cuenta de servicio tenga acceso de 'Editor' a la hoja.";
             console.error('🔒 ERROR DE PERMISOS: Verificar que la cuenta de servicio tenga acceso como Editor a la hoja.');
         } else if (error.message && error.message.includes('Unable to parse range')) { // Nombre de pestaña incorrecto o inexistente
-            // Nota: req.body.tipo podría no estar definido si el error ocurrió antes de construir configuracionFila
             errorMessage = `Error de configuración: No se encontró la pestaña '${req.body.tipo || 'desconocida'}'. Asegúrate de que existe y el nombre es exacto.`;
             console.error(`📋 ERROR DE PESTAÑA: Verificar el nombre de la pestaña para el tipo de queja.`);
-        } else if (error.code === 'ENOENT') { // Archivo de clave de servicio no encontrado
-            errorMessage = "Error de configuración del servidor.";
+        } else if (error.code === 'ENOENT') { // Archivo de clave de servicio no encontrado (esto no debería ocurrir si usas la variable de entorno)
+            errorMessage = "Error de configuración del servidor: Archivo de credenciales no encontrado. Contacta al administrador.";
             console.error('📁 ERROR DE ARCHIVO: Verificar que la ruta y el nombre del archivo de credenciales son correctos.');
         } else if (error.code === 400) { // Bad Request de la API (ej. formato de datos inválido enviado a Google Sheets)
             errorMessage = `Error de la API de Google Sheets: ${error.message}.`;
