@@ -89,6 +89,7 @@ if (!process.env.DATABASE_URL) {
 
 // --- CONFIGURACIÓN DE LA BASE DE DATOS POSTGRESQL ---
 // Railway inyecta la variable DATABASE_URL automáticamente
+// Y la usaremos directamente desde process.env
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false } // Acepta certificados autofirmados, necesario en Railway
