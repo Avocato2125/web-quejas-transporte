@@ -14,7 +14,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Middlewares y funciones de seguridad (sin cambios) en esta sección---
+// --- Middlewares y funciones de seguridad (sin cambios en esta sección)---
 const rateLimit = {};
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 const MAX_REQUESTS = 10;
@@ -86,13 +86,19 @@ function obtenerTimestamp() {
     const options = {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false,
+        hour12: true, // ✅ CORRECCIÓN: Usar formato de 12 horas
         timeZone: 'America/Mexico_City'
     };
+    
+    // Formateamos la fecha y hora
     const formattedDate = new Date(now).toLocaleString('es-MX', options);
-    const [datePart, timePart] = formattedDate.split(' ');
+    
+    // El formato 'es-MX' con hour12: true devuelve algo como "07/08/2025 13:00:40 p. m."
+    // Lo transformamos a 'YYYY-MM-DD HH:MM:SS AM/PM'
+    const [datePart, timePart, ampmPart] = formattedDate.split(/[/\s:]+/);
     const [day, month, year] = datePart.split('/');
-    return `${year}-${month}-${day} ${timePart}`;
+    
+    return `${year}-${month}-${day} ${timePart} ${ampmPart}`;
 }
 
 function sanitizeInput(input) {
@@ -137,6 +143,7 @@ function validarCamposRequeridos(data) {
 }
 
 // --- RUTAS DEL SERVIDOR ---
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -165,10 +172,9 @@ app.post('/enviar-queja', async (req, res) => {
         let query;
         let values;
 
-        // Lógica para elegir la tabla y los valores correctos
         switch (tipo) {
             case 'Retraso':
-                // ✅ CORRECCIÓN: Agregamos 'detalles_retraso' a la consulta SQL
+                // ✅ CORRECCIÓN: Usamos null para los valores que no se envían
                 query = `INSERT INTO quejas_retraso (
                     numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
                     detalles_retraso, direccion_subida, hora_programada, hora_llegada
