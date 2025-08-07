@@ -1,4 +1,4 @@
-// server.js
+// server.js (Versión para PostgreSQL)
 
 // Carga las variables de entorno del archivo .env.
 // Esto es para uso local. En Railway, las variables se configuran en el panel.
@@ -119,12 +119,9 @@ function obtenerTimestamp() {
     
     // Formateamos la fecha y hora
     const formattedDate = new Date(now).toLocaleString('es-MX', options);
-    
-    // Dividimos la fecha y la hora para reordenar a YYYY-MM-DD
     const [datePart, timePart, ampmPart] = formattedDate.split(/[/\s:]+/);
-    
-    // Corregimos la reconstrucción para incluir ampmPart
-    return `${datePart.split('/')[2]}-${datePart.split('/')[1]}-${datePart.split('/')[0]} ${timePart} ${ampmPart}`;
+    const [day, month, year] = datePart.split('/'); 
+    return `${year}-${month}-${day} ${timePart} ${ampmPart}`;
 }
 
 /**
@@ -154,7 +151,6 @@ function sanitizeInput(input) {
  * @returns {string|null} - Mensaje de error si la validación falla, o null si es exitosa.
  */
 function validarCamposRequeridos(data) {
-    // ✅ CORRECCIÓN: Ahora espera 'ruta', 'colonia' y 'turno'
     const camposPrincipales = ['numero_empleado', 'empresa', 'ruta', 'colonia', 'turno', 'tipo'];
     for (const campo of camposPrincipales) {
         if (!data[campo] || String(data[campo]).trim() === '') {
@@ -179,94 +175,108 @@ function validarCamposRequeridos(data) {
     return null;
 }
 
-/**
- * Construye los datos de la fila y determina el nombre de la pestaña
- * según el tipo de queja, incluyendo geolocalización.
- * @param {string} tipo - El tipo de queja seleccionado.
- * @param {object} data - Todos los datos del formulario (ya sanitizados).
- * @returns {object|null} - Objeto con 'tabName' y 'rowValues', o null si el tipo no es reconocido.
- */
-function construirDatosFila(tipo, data) {
-    const timestamp = obtenerTimestamp();
-    // ✅ CORRECCIÓN: Extrae 'ruta', 'colonia' y 'turno'
-    const { numero_empleado, empresa, ruta, colonia, turno, tipo: tipoQueja, latitud, longitud, ...rest } = data;
+// --- RUTAS DEL SERVIDOR ---
 
-    const latitudStr = latitud ? String(latitud) : null;
-    const longitudStr = longitud ? String(longitud) : null;
-    let query;
-    let values;
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-    switch (tipo) {
-        case 'Retraso':
-            query = `INSERT INTO quejas_retraso (
-                numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
-                detalles_retraso, direccion_subida, hora_programada, hora_llegada
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            RETURNING *`;
-            values = [
-                numero_empleado, empresa, ruta, colonia, turno, tipoQueja, latitudStr, longitudStr,
-                rest.detalles_retraso || null, rest.direccion_subida || null, rest.hora_programada || null, rest.hora_llegada || null
-            ];
-            break;
-        case 'Mal trato':
-            query = `INSERT INTO quejas_mal_trato (
-                numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
-                nombre_conductor_maltrato, detalles_maltrato
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING *`;
-            values = [
-                numero_empleado, empresa, ruta, colonia, turno, tipoQueja, latitudStr, longitudStr,
-                rest.nombre_conductor_maltrato || null, rest.detalles_maltrato || null
-            ];
-            break;
-        case 'Inseguridad':
-            query = `INSERT INTO quejas_inseguridad (
-                numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
-                detalles_inseguridad, ubicacion_inseguridad
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING *`;
-            values = [
-                numero_empleado, empresa, ruta, colonia, turno, tipoQueja, latitudStr, longitudStr,
-                rest.detalles_inseguridad || null, rest.ubicacion_inseguridad || null
-            ];
-            break;
-        case 'Unidad en mal estado':
-            query = `INSERT INTO quejas_unidad_mal_estado (
-                numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
-                numero_unidad_malestado, tipo_falla, detalles_malestado
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING *`;
-            values = [
-                numero_empleado, empresa, ruta, colonia, turno, tipoQueja, latitudStr, longitudStr,
-                rest.numero_unidad_malestado || null, rest.tipo_falla || null, rest.detalles_malestado || null
-            ];
-            break;
-        case 'Otro':
-            query = `INSERT INTO quejas_otro (
-                numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
-                detalles_otro
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING *`;
-            values = [
-                numero_empleado, empresa, ruta, colonia, turno, tipoQueja, latitudStr, longitudStr,
-                rest.detalles_otro || null
-            ];
-            break;
-        default:
-            return res.status(400).json({ error: 'Tipo de queja no válido.' });
+// RUTA POST: Enviar quejas
+app.post('/enviar-queja', async (req, res) => {
+    try {
+        const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+        if (!checkRateLimit(clientIP)) {
+            return res.status(429).json({ error: 'Demasiadas quejas.' });
+        }
+        const validationError = validarCamposRequeridos(req.body);
+        if (validationError) {
+            return res.status(400).json({ error: validationError });
+        }
+        const {
+            numero_empleado, empresa, ruta, colonia, turno, tipo,
+            latitud, longitud,
+            detalles_retraso, direccion_subida, hora_programada, hora_llegada,
+            nombre_conductor_maltrato, detalles_maltrato,
+            detalles_inseguridad, ubicacion_inseguridad,
+            numero_unidad_malestado, tipo_falla, detalles_malestado,
+            detalles_otro
+        } = req.body;
+        const latitudStr = latitud ? String(latitud) : null;
+        const longitudStr = longitud ? String(longitud) : null;
+        let query;
+        let values;
+
+        switch (tipo) {
+            case 'Retraso':
+                query = `INSERT INTO quejas_retraso (
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
+                    detalles_retraso, direccion_subida, hora_programada, hora_llegada
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                RETURNING *`;
+                values = [
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitudStr, longitudStr,
+                    detalles_retraso || null, direccion_subida || null, hora_programada || null, hora_llegada || null
+                ];
+                break;
+            case 'Mal trato':
+                query = `INSERT INTO quejas_mal_trato (
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
+                    nombre_conductor_maltrato, detalles_maltrato
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING *`;
+                values = [
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitudStr, longitudStr,
+                    nombre_conductor_maltrato || null, detalles_maltrato || null
+                ];
+                break;
+            case 'Inseguridad':
+                query = `INSERT INTO quejas_inseguridad (
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
+                    detalles_inseguridad, ubicacion_inseguridad
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING *`;
+                values = [
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitudStr, longitudStr,
+                    detalles_inseguridad || null, ubicacion_inseguridad || null
+                ];
+                break;
+            case 'Unidad en mal estado':
+                query = `INSERT INTO quejas_unidad_mal_estado (
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
+                    numero_unidad_malestado, tipo_falla, detalles_malestado
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING *`;
+                values = [
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitudStr, longitudStr,
+                    numero_unidad_malestado || null, tipo_falla || null, detalles_malestado || null
+                ];
+                break;
+            case 'Otro':
+                query = `INSERT INTO quejas_otro (
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
+                    detalles_otro
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING *`;
+                values = [
+                    numero_empleado, empresa, ruta, colonia, turno, tipo, latitudStr, longitudStr,
+                    detalles_otro || null
+                ];
+                break;
+            default:
+                return res.status(400).json({ error: 'Tipo de queja no válido.' });
+        }
+
+        const resDb = await pool.query(query, values);
+        console.log(`✅ Queja registrada en la tabla '${tipo.toLowerCase().replace(/ /g, '_')}' con ID: ${resDb.rows[0].id}`);
+        res.status(200).json({
+            success: true,
+            message: "¡Queja registrada con éxito en la base de datos! Gracias por tu retroalimentación."
+        });
+
+    } catch (error) {
+        console.error('❌ Error al procesar queja:', error);
+        res.status(500).json({ error: 'Error interno del servidor.' });
     }
-
-    const resDb = await pool.query(query, values);
-    console.log(`✅ Queja registrada en la tabla '${tipo.toLowerCase().replace(/ /g, '_')}' con ID: ${resDb.rows[0].id}`);
-    res.status(200).json({
-        success: true,
-        message: "¡Queja registrada con éxito en la base de datos! Gracias por tu retroalimentación."
-    });
-
-} catch (error) {
-    console.error('❌ Error al procesar queja:', error);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-}
 });
 
 
