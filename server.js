@@ -14,7 +14,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Middlewares y funciones de seguridad (sin cambios) ---
+// --- Middlewares y funciones de seguridad (sin cambios) en esta sección---
 const rateLimit = {};
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 const MAX_REQUESTS = 10;
@@ -137,12 +137,10 @@ function validarCamposRequeridos(data) {
 }
 
 // --- RUTAS DEL SERVIDOR ---
-
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// RUTA POST: Enviar quejas
 app.post('/enviar-queja', async (req, res) => {
     try {
         const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
@@ -153,15 +151,15 @@ app.post('/enviar-queja', async (req, res) => {
         if (validationError) {
             return res.status(400).json({ error: validationError });
         }
-
         const {
-            numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
+            numero_empleado, empresa, ruta, colonia, turno, tipo,
+            latitud, longitud,
             detalles_retraso, direccion_subida, hora_programada, hora_llegada,
             nombre_conductor_maltrato, detalles_maltrato,
             detalles_inseguridad, ubicacion_inseguridad,
-            numero_unidad_malestado, tipo_falla, detalles_malestado, detalles_otro
+            numero_unidad_malestado, tipo_falla, detalles_malestado,
+            detalles_otro
         } = req.body;
-
         const latitudStr = latitud ? String(latitud) : null;
         const longitudStr = longitud ? String(longitud) : null;
         let query;
@@ -170,14 +168,15 @@ app.post('/enviar-queja', async (req, res) => {
         // Lógica para elegir la tabla y los valores correctos
         switch (tipo) {
             case 'Retraso':
+                // ✅ CORRECCIÓN: Agregamos 'detalles_retraso' a la consulta SQL
                 query = `INSERT INTO quejas_retraso (
                     numero_empleado, empresa, ruta, colonia, turno, tipo, latitud, longitud,
-                    direccion_subida, hora_programada, hora_llegada, detalles_retraso
+                    detalles_retraso, direccion_subida, hora_programada, hora_llegada
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING *`;
                 values = [
                     numero_empleado, empresa, ruta, colonia, turno, tipo, latitudStr, longitudStr,
-                    direccion_subida || null, hora_programada || null, hora_llegada || null, detalles_retraso || null
+                    detalles_retraso || null, direccion_subida || null, hora_programada || null, hora_llegada || null
                 ];
                 break;
             case 'Mal trato':
