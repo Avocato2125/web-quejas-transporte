@@ -657,12 +657,10 @@
         const submitBtn = document.getElementById('submitBtn');
         const notificationContainer = document.getElementById('notification-container');
 
-        // ELEMENTOS PARA GEOLOCALIZACIÓN
         const latitudInput = document.getElementById('latitud');
         const longitudInput = document.getElementById('longitud');
         const ubicacionStatus = document.getElementById('ubicacion-status');
 
-        // Función para mostrar notificaciones flotantes
         function showNotification(message, type = 'success', duration = 5000) {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
@@ -682,7 +680,6 @@
             });
         }
 
-        // Función de validación en tiempo real por campo
         function validateField(field) {
             const formGroup = field.closest('.form-group');
             const errorMessage = formGroup ? formGroup.querySelector('.error-message') : null;
@@ -699,7 +696,7 @@
             if (field.hasAttribute('required') && !field.value.trim()) {
                 isValid = false;
                 message = 'Este campo es requerido.';
-            } else if (field.type === 'text' || field.tagName === 'TEXTAREA') { // CORREGIDO: Eliminado || field.tagName === 'SELECT'
+            } else if (field.type === 'text' || field.tagName === 'TEXTAREA') {
                 const minLength = parseInt(field.getAttribute('minlength')) || 0;
                 const maxLength = parseInt(field.getAttribute('maxlength')) || Infinity;
                 if (field.value.trim().length < minLength) {
@@ -710,7 +707,6 @@
                     message = `Máximo ${maxLength} caracteres.`;
                 }
             }
-            // Puedes añadir validaciones específicas aquí para "numero_empleado" si lo deseas (ej. solo números)
 
             if (formGroup) {
                 if (!isValid) {
@@ -734,7 +730,6 @@
             });
         });
 
-        // Función de sanitización del lado cliente
         function sanitizeInput(value) {
             if (typeof value !== 'string') return value;
             return value.trim()
@@ -750,14 +745,13 @@
                 });
         }
 
-        // Función para mostrar/ocultar secciones específicas del formulario
         function mostrarSeccionQueja() {
             const tipoSeleccionado = tipoQuejaSelect.value;
 
             document.querySelectorAll('.form-group').forEach(group => {
                 group.classList.remove('error', 'success');
                 const errorMsg = group.querySelector('.error-message');
-                if (errorMsg) errorMsg.style.display = 'none'; 
+                if (errorMsg) errorMsg.style.display = 'none';
             });
 
             seccionesEspecificas.forEach(seccion => {
@@ -769,7 +763,7 @@
             });
 
             if (tipoSeleccionado && tipoSeleccionado !== '') {
-                const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_'); 
+                const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
                 const seccionAMostrar = document.getElementById(idSeccion);
                 if (seccionAMostrar) {
                     seccionAMostrar.style.display = 'block';
@@ -781,18 +775,14 @@
             }
         }
 
-        // Función de validación completa del formulario
         function validateCompleteForm() {
             let isValid = true;
-            // Validar campos generales
-            // CAMBIADO: Añadido 'ruta', 'colonia', 'turno' a la validación
             formQueja.querySelectorAll('#numero_empleado, #empresa, #ruta, #colonia, #turno, #tipo').forEach(field => {
                 if (!validateField(field)) {
                     isValid = false;
                 }
             });
 
-            // Validar campos de la sección activa
             const tipoSeleccionado = tipoQuejaSelect.value;
             if (tipoSeleccionado && tipoSeleccionado !== '') {
                 const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
@@ -808,7 +798,6 @@
             return isValid;
         }
 
-        // Función para obtener la ubicación
         function obtenerUbicacion() {
             ubicacionStatus.style.display = 'block';
 
@@ -868,19 +857,14 @@
             }
         }
 
-
-        // Cargar progreso y obtener ubicación al iniciar
         document.addEventListener('DOMContentLoaded', () => {
             mostrarSeccionQueja();
             obtenerUbicacion();
             loadProgress();
         });
 
-        // Event listeners existentes
         tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
 
-
-        // Guardar progreso cada 30 segundos
         function saveProgress() {
             const formData = new FormData(formQueja);
             const data = {};
@@ -892,7 +876,6 @@
                 }
             }
             data.current_queja_type = tipoQuejaSelect.value;
-            
             sessionStorage.setItem('queja-progress', JSON.stringify(data));
         }
 
@@ -912,7 +895,6 @@
                     }
                     mostrarSeccionQueja();
                     document.querySelectorAll('input, textarea, select').forEach(field => validateField(field));
-
                     showNotification('Progreso de la queja cargado.', 'info', 3000);
                 } catch (e) {
                     console.log('No se pudo cargar el progreso guardado:', e);
@@ -923,30 +905,24 @@
 
         setInterval(saveProgress, 30000);
 
-        // Limpiar progreso cuando se envía exitosamente
         formQueja.addEventListener('submit', () => {
             setTimeout(() => {
                 sessionStorage.removeItem('queja-progress');
             }, 1000);
         });
 
-
-        // ENVÍO DEL FORMULARIO
         let isSubmitting = false;
 
         formQueja.addEventListener('submit', async function (e) {
             e.preventDefault();
-
             if (isSubmitting) {
                 showNotification('La queja ya se está enviando. Por favor, espera.', 'info', 3000);
                 return;
             }
-
             if (!validateCompleteForm()) {
                 showNotification('Por favor, corrige los errores en el formulario.', 'error');
                 return;
             }
-
             isSubmitting = true;
             loadingOverlay.style.display = 'flex';
             submitBtn.disabled = true;
@@ -966,14 +942,11 @@
                     },
                     body: JSON.stringify(data)
                 });
-
                 const responseData = await res.json();
-
                 if (res.ok && responseData.success) {
                     showNotification('¡Queja enviada con éxito! Gracias por tu retroalimentación.', 'success');
                     formQueja.reset();
                     mostrarSeccionQueja();
-
                     document.querySelectorAll('.form-group').forEach(group => {
                         group.classList.remove('error', 'success');
                         const errorMsg = group.querySelector('.error-message');
