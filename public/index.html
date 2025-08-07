@@ -126,11 +126,18 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        
+        /* FIX: Selector corregido para aplicar el asterisco solo a campos requeridos */
+        .form-group.is-required label::after {
+            content: ' *';
+            color: var(--color-error);
+            font-weight: bold;
+        }
 
-        /* Bloque 1 - Solo para inputs y textareas (SIN flecha) */
         input[type="text"],
         input[type="time"],
-        textarea {
+        textarea,
+        select {
             width: 100%;
             padding: 16px;
             margin-bottom: 25px;
@@ -144,21 +151,7 @@
             font-family: 'Lato', sans-serif;
         }
 
-        /* Bloque 2 - Solo para select (CON flecha) */
         select {
-            width: 100%;
-            padding: 16px;
-            margin-bottom: 25px;
-            border: 2px solid var(--color-border);
-            border-radius: 12px;
-            box-sizing: border-box;
-            font-size: 1.05em;
-            color: var(--color-text-dark);
-            background-color: var(--color-white);
-            transition: all 0.3s ease;
-            font-family: 'Lato', sans-serif;
-            
-            /* Propiedades SOLO para select */
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -180,7 +173,6 @@
             background-color: var(--color-white);
         }
         
-        /* Estilo para la opción por defecto del select */
         select:invalid {
             color: #9CA3AF;
         }
@@ -190,7 +182,6 @@
         select option[value=""] {
             color: #9CA3AF;
         }
-
 
         input[type="text"]::placeholder,
         textarea::placeholder {
@@ -280,7 +271,6 @@
             to { opacity: 1; transform: translateX(0); }
         }
 
-        /* Separadores de sección */
         .form-group {
             margin-bottom: 25px;
             position: relative;
@@ -288,24 +278,7 @@
         .form-group:last-child {
             margin-bottom: 0;
         }
-
-        /* Indicador de campo requerido */
-        label[for]::after {
-            content: ' *';
-            color: var(--color-error);
-            font-weight: bold;
-            position: absolute;
-            margin-left: 5px;
-            top: 0;
-            transform: translateY(-2px);
-        }
-        input:not([required]) + label::after,
-        textarea:not([required]) + label::after,
-        select:not([required]) + label::after {
-            content: none;
-        }
-
-
+        
         /* Overlay de carga */
         .loading-overlay {
             position: absolute;
@@ -372,22 +345,10 @@
             transform: translateX(0);
         }
 
-        .notification.success {
-            background: var(--color-success);
-        }
-
-        .notification.error {
-            background: var(--color-error);
-        }
-
-        .notification.info {
-            background: var(--color-info);
-        }
-
-        .notification.warning {
-            background: var(--color-warning);
-            color: var(--color-text-dark);
-        }
+        .notification.success { background: var(--color-success); }
+        .notification.error { background: var(--color-error); }
+        .notification.info { background: var(--color-info); }
+        .notification.warning { background: var(--color-warning); color: var(--color-text-dark); }
 
         /* Validación visual y mensajes de error por campo */
         .form-group.error input,
@@ -412,18 +373,7 @@
             display: none;
             font-weight: 600;
         }
-
-        input:invalid:not(:focus):not(:placeholder-shown),
-        textarea:invalid:not(:focus):not(:placeholder-shown),
-        select:invalid:not(:focus):not(:placeholder-shown) {
-            border-color: var(--color-error);
-        }
-        input:invalid:focus,
-        textarea:invalid:focus,
-        select:invalid:focus {
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
-        }
-
+        
         /* Estilos para el estado de la ubicación */
         #ubicacion-status {
             text-align: center;
@@ -439,7 +389,6 @@
             opacity: 0;
             pointer-events: none;
         }
-        /* Clase para mostrar el status (controlada por JS) */
         #ubicacion-status.show {
             opacity: 1;
             pointer-events: all;
@@ -475,7 +424,7 @@
             h2::after { width: 80px; }
             h3 { font-size: 1.2em; padding: 12px 15px; }
             label { font-size: 0.95em; }
-            input[type="text"], input[type="time"], textarea, select { padding: 14px; font-size: 16px; }
+            input, select, textarea { padding: 14px; font-size: 16px; }
             button[type="submit"] { padding: 16px 30px; font-size: 1.1em; }
             .queja-especifica { padding: 25px 20px; }
             #notification-container {
@@ -512,7 +461,7 @@
             <div class="form-group">
                 <label for="empresa">Empresa:</label>
                 <select name="empresa" id="empresa" required>
-                    <option value="">Selecciona una empresa</option>
+                    <option value="" disabled selected>Selecciona una empresa</option>
                     <option value="abc">ABC Technologies</option>
                     <option value="leoch">Leoch Battery</option>
                     <option value="gerber">Gerber</option>
@@ -536,7 +485,7 @@
             <div class="form-group">
                 <label for="turno">Turno:</label>
                 <select name="turno" id="turno" required>
-                    <option value="">Selecciona tu turno</option>
+                    <option value="" disabled selected>Selecciona tu turno</option>
                     <option value="Primero">Primero</option>
                     <option value="Segundo">Segundo</option>
                     <option value="Tercero">Tercero</option>
@@ -547,7 +496,7 @@
             <div class="form-group">
                 <label for="tipo">Tipo de queja:</label>
                 <select name="tipo" id="tipo" required>
-                    <option value="">Selecciona el tipo de queja</option>
+                    <option value="" disabled selected>Selecciona el tipo de queja</option>
                     <option value="Retraso">Retraso de Unidad</option>
                     <option value="Mal trato">Mal Trato / Mala Actitud del Conductor</option>
                     <option value="Inseguridad">Inseguridad / Conducción Peligrosa</option>
@@ -560,22 +509,22 @@
             <div id="seccion-Retraso" class="queja-especifica">
                 <h3>Detalles de Retraso de Unidad</h3>
                 <div class="form-group">
-                    <label for="direccion_subida">Dirección de Recolección (Calle, número, colonia):</label>
+                    <label for="direccion_subida">Dirección de Recolección:</label>
                     <input type="text" id="direccion_subida" name="direccion_subida" placeholder="Ej: Av. Siempre Viva 123, Centro" data-required="true" maxlength="200">
                     <div class="error-message"></div>
                 </div>
                 <div class="form-group">
-                    <label for="hora_programada">Hora de Recolección Programada (aprox.):</label>
+                    <label for="hora_programada">Hora Programada:</label>
                     <input type="time" id="hora_programada" name="hora_programada" data-required="true">
                     <div class="error-message"></div>
                 </div>
                 <div class="form-group">
-                    <label for="hora_llegada">Hora Real de Llegada de la Unidad:</label>
+                    <label for="hora_llegada">Hora Real de Llegada:</label>
                     <input type="time" id="hora_llegada" name="hora_llegada" data-required="true">
                     <div class="error-message"></div>
                 </div>
                 <div class="form-group">
-                    <label for="detalles_retraso">Describe brevemente lo ocurrido con el retraso:</label>
+                    <label for="detalles_retraso">Describe lo ocurrido:</label>
                     <textarea id="detalles_retraso" name="detalles_retraso" rows="3" placeholder="Ej: La unidad llegó 20 minutos tarde sin aviso." data-required="true" maxlength="500"></textarea>
                     <div class="error-message"></div>
                 </div>
@@ -584,13 +533,13 @@
             <div id="seccion-Mal_trato" class="queja-especifica">
                 <h3>Detalles de Mal Trato / Mala Actitud</h3>
                 <div class="form-group">
-                    <label for="nombre_conductor_maltrato">Si lo sabes, nombre o número de unidad del conductor:</label>
+                    <label for="nombre_conductor_maltrato">Nombre/Unidad del conductor (Opcional):</label>
                     <input type="text" id="nombre_conductor_maltrato" name="nombre_conductor_maltrato" placeholder="Ej: Conductor Juan Pérez / Unidad #456" maxlength="100">
                     <div class="error-message"></div>
                 </div>
                 <div class="form-group">
-                    <label for="detalles_maltrato">Describe detalladamente lo ocurrido:</label>
-                    <textarea id="detalles_maltrato" name="detalles_maltrato" rows="4" placeholder="Ej: El conductor usó lenguaje inapropiado y se negó a abrir la puerta en el punto acordado." data-required="true" maxlength="1000"></textarea>
+                    <label for="detalles_maltrato">Describe lo ocurrido:</label>
+                    <textarea id="detalles_maltrato" name="detalles_maltrato" rows="4" placeholder="Ej: El conductor usó lenguaje inapropiado..." data-required="true" maxlength="1000"></textarea>
                     <div class="error-message"></div>
                 </div>
             </div>
@@ -598,12 +547,12 @@
             <div id="seccion-Inseguridad" class="queja-especifica">
                 <h3>Detalles de Inseguridad / Conducción Peligrosa</h3>
                 <div class="form-group">
-                    <label for="detalles_inseguridad">Describe la situación de inseguridad o el comportamiento peligroso:</label>
-                    <textarea id="detalles_inseguridad" name="detalles_inseguridad" rows="4" placeholder="Ej: El conductor excedía el límite de velocidad y usaba el celular mientras manejaba." data-required="true" maxlength="1000"></textarea>
+                    <label for="detalles_inseguridad">Describe la situación:</label>
+                    <textarea id="detalles_inseguridad" name="detalles_inseguridad" rows="4" placeholder="Ej: El conductor excedía el límite de velocidad..." data-required="true" maxlength="1000"></textarea>
                     <div class="error-message"></div>
                 </div>
                 <div class="form-group">
-                    <label for="ubicacion_inseguridad">¿Dónde ocurrió el incidente (aprox. calle, cruce)?</label>
+                    <label for="ubicacion_inseguridad">Ubicación del incidente (Opcional):</label>
                     <input type="text" id="ubicacion_inseguridad" name="ubicacion_inseguridad" placeholder="Ej: En la intersección de Av. Central y Calle Juárez" maxlength="200">
                     <div class="error-message"></div>
                 </div>
@@ -612,18 +561,18 @@
             <div id="seccion-Unidad_en_mal_estado" class="queja-especifica">
                 <h3>Detalles de Unidad en Mal Estado</h3>
                 <div class="form-group">
-                    <label for="numero_unidad_malestado">Número de Unidad (si lo conoces):</label>
+                    <label for="numero_unidad_malestado">Número de Unidad (Opcional):</label>
                     <input type="text" id="numero_unidad_malestado" name="numero_unidad_malestado" placeholder="Ej: Unidad 789" maxlength="50">
                     <div class="error-message"></div>
                 </div>
                 <div class="form-group">
                     <label for="tipo_falla">Tipo de falla o daño:</label>
-                    <input type="text" id="tipo_falla" name="tipo_falla" placeholder="Ej: Asientos rotos, Aire acondicionado no funciona, Ruido extraño en el motor" data-required="true" maxlength="200">
+                    <input type="text" id="tipo_falla" name="tipo_falla" placeholder="Ej: Asientos rotos, Aire acondicionado no funciona" data-required="true" maxlength="200">
                     <div class="error-message"></div>
                 </div>
                 <div class="form-group">
-                    <label for="detalles_malestado">Describe el estado de la unidad y si afectó el servicio:</label>
-                    <textarea id="detalles_malestado" name="detalles_malestado" rows="4" placeholder="Ej: La unidad olía a gasolina, los cinturones de seguridad estaban defectuosos y la ventana no cerraba bien." data-required="true" maxlength="1000"></textarea>
+                    <label for="detalles_malestado">Describe el estado de la unidad:</label>
+                    <textarea id="detalles_malestado" name="detalles_malestado" rows="4" placeholder="Ej: La unidad olía a gasolina, los cinturones no servían..." data-required="true" maxlength="1000"></textarea>
                     <div class="error-message"></div>
                 </div>
             </div>
@@ -631,7 +580,7 @@
             <div id="seccion-Otro" class="queja-especifica">
                 <h3>Otros Detalles</h3>
                 <div class="form-group">
-                    <label for="detalles_otro">Describe detalladamente tu queja:</label>
+                    <label for="detalles_otro">Describe tu queja:</label>
                     <textarea id="detalles_otro" name="detalles_otro" rows="5" data-required="true" placeholder="Por favor, sé lo más específico posible." maxlength="1000"></textarea>
                     <div class="error-message"></div>
                 </div>
@@ -639,6 +588,7 @@
 
             <input type="hidden" id="latitud" name="latitud">
             <input type="hidden" id="longitud" name="longitud">
+            
             <div class="form-group">
                 <div id="ubicacion-status"></div>
             </div>
@@ -650,65 +600,85 @@
     <div id="notification-container"></div>
 
     <script>
-        const tipoQuejaSelect = document.getElementById('tipo');
-        const seccionesEspecificas = document.querySelectorAll('.queja-especifica');
-        const formQueja = document.getElementById('form-queja');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const submitBtn = document.getElementById('submitBtn');
-        const notificationContainer = document.getElementById('notification-container');
+        // FIX: Todo el script está encapsulado para proteger el ámbito global.
+        document.addEventListener('DOMContentLoaded', () => {
 
-        const latitudInput = document.getElementById('latitud');
-        const longitudInput = document.getElementById('longitud');
-        const ubicacionStatus = document.getElementById('ubicacion-status');
+            // --- CONSTANTES Y SELECTORES DEL DOM ---
+            const formQueja = document.getElementById('form-queja');
+            const tipoQuejaSelect = document.getElementById('tipo');
+            const seccionesEspecificas = document.querySelectorAll('.queja-especifica');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const submitBtn = document.getElementById('submitBtn');
+            const notificationContainer = document.getElementById('notification-container');
+            const latitudInput = document.getElementById('latitud');
+            const longitudInput = document.getElementById('longitud');
+            const ubicacionStatus = document.getElementById('ubicacion-status');
+            
+            const SESSION_STORAGE_KEY = 'queja-progress';
+            let isSubmitting = false;
 
-        function showNotification(message, type = 'success', duration = 5000) {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
+            // --- FUNCIONES ---
 
-            notificationContainer.appendChild(notification);
-            setTimeout(() => notification.classList.add('show'), 100);
+            /**
+             * Muestra una notificación flotante.
+             * @param {string} message El mensaje a mostrar.
+             * @param {'success'|'error'|'info'|'warning'} type El tipo de notificación.
+             * @param {number} duration Duración en milisegundos.
+             */
+            function showNotification(message, type = 'success', duration = 5000) {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
 
-            setTimeout(() => {
-                notification.classList.remove('show');
-                notification.addEventListener('transitionend', () => notification.remove(), { once: true });
-            }, duration);
+                notificationContainer.appendChild(notification);
+                setTimeout(() => notification.classList.add('show'), 100);
 
-            notification.addEventListener('click', () => {
-                notification.classList.remove('show');
-                notification.addEventListener('transitionend', () => notification.remove(), { once: true });
-            });
-        }
+                const removeNotification = () => {
+                    notification.classList.remove('show');
+                    notification.addEventListener('transitionend', () => notification.remove(), { once: true });
+                };
 
-        function validateField(field) {
-            const formGroup = field.closest('.form-group');
-            const errorMessage = formGroup ? formGroup.querySelector('.error-message') : null;
-            let isValid = true;
-            let message = '';
-
-            if (formGroup) {
-                formGroup.classList.remove('error', 'success');
+                const timer = setTimeout(removeNotification, duration);
+                notification.addEventListener('click', () => {
+                    clearTimeout(timer);
+                    removeNotification();
+                });
             }
-            if (errorMessage) {
-                errorMessage.style.display = 'none';
-            }
 
-            if (field.hasAttribute('required') && !field.value.trim()) {
-                isValid = false;
-                message = 'Este campo es requerido.';
-            } else if (field.type === 'text' || field.tagName === 'TEXTAREA') {
-                const minLength = parseInt(field.getAttribute('minlength')) || 0;
-                const maxLength = parseInt(field.getAttribute('maxlength')) || Infinity;
-                if (field.value.trim().length < minLength) {
-                    isValid = false;
-                    message = `Debe tener al menos ${minLength} caracteres.`;
-                } else if (field.value.length > maxLength) {
-                    isValid = false;
-                    message = `Máximo ${maxLength} caracteres.`;
+            /**
+             * Valida un campo individual y actualiza la UI.
+             * @param {HTMLElement} field El campo del formulario a validar.
+             * @returns {boolean} True si el campo es válido, false en caso contrario.
+             */
+            function validateField(field) {
+                const formGroup = field.closest('.form-group');
+                if (!formGroup) return true;
+
+                const errorMessage = formGroup.querySelector('.error-message');
+                let isValid = true;
+                let message = '';
+                
+                // FIX: Lógica para añadir una clase al contenedor si el campo es requerido.
+                if (field.hasAttribute('required')) {
+                    formGroup.classList.add('is-required');
+                } else {
+                    formGroup.classList.remove('is-required');
                 }
-            }
 
-            if (formGroup) {
+                formGroup.classList.remove('error', 'success');
+                if (errorMessage) errorMessage.style.display = 'none';
+
+                if (field.hasAttribute('required') && !field.value.trim()) {
+                    isValid = false;
+                    message = 'Este campo es requerido.';
+                } else if (field.type === 'text' || field.tagName === 'TEXTAREA') {
+                    const minLength = parseInt(field.getAttribute('minlength'), 10) || 0;
+                    if (field.value.trim().length > 0 && field.value.trim().length < minLength) {
+                        isValid = false;
+                        message = `Debe tener al menos ${minLength} caracteres.`;
+                    }
+                }
+
                 if (!isValid) {
                     formGroup.classList.add('error');
                     if (errorMessage) {
@@ -718,92 +688,88 @@
                 } else if (field.value.trim()) {
                     formGroup.classList.add('success');
                 }
+                
+                return isValid;
             }
-            return isValid;
-        }
 
-        document.querySelectorAll('input, textarea, select').forEach(field => {
-            field.addEventListener('blur', () => validateField(field));
-            field.addEventListener('input', () => {
-                clearTimeout(field.validationTimeout);
-                field.validationTimeout = setTimeout(() => validateField(field), 500);
-            });
-        });
+            /**
+             * Escapa caracteres HTML para prevenir XSS.
+             * @param {string} value El texto a sanitizar.
+             * @returns {string} El texto sanitizado.
+             */
+            function sanitizeInput(value) {
+                if (typeof value !== 'string') return value;
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#x27;',
+                    '/': '&#x2F;',
+                };
+                const reg = /[&<>"'/]/ig;
+                // FIX: La función ahora reemplaza solo los caracteres peligrosos y no elimina el resto.
+                return value.trim().replace(reg, (match) => map[match]);
+            }
 
-        function sanitizeInput(value) {
-            if (typeof value !== 'string') return value;
-            return value.trim()
-                .replace(/[<>'"&]/g, (char) => {
-                    switch (char) {
-                        case '<': return '&lt;';
-                        case '>': return '&gt;';
-                        case '&': return '&amp;';
-                        case "'": return '&#x27;';
-                        case '"': return '&quot;';
-                        default: return '';
+            /**
+             * Muestra la sección de queja correcta y gestiona los campos requeridos.
+             */
+            function mostrarSeccionQueja() {
+                const tipoSeleccionado = tipoQuejaSelect.value;
+
+                seccionesEspecificas.forEach(seccion => {
+                    seccion.style.display = 'none';
+                    seccion.querySelectorAll('input, textarea').forEach(field => {
+                        field.removeAttribute('required');
+                        // Limpiar clases de validación al ocultar
+                        const formGroup = field.closest('.form-group');
+                        if(formGroup) formGroup.classList.remove('error', 'success', 'is-required');
+                    });
+                });
+
+                if (tipoSeleccionado) {
+                    const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
+                    const seccionAMostrar = document.getElementById(idSeccion);
+                    if (seccionAMostrar) {
+                        seccionAMostrar.style.display = 'block';
+                        seccionAMostrar.querySelectorAll('[data-required="true"]').forEach(field => {
+                            field.setAttribute('required', 'required');
+                            validateField(field); // Re-validar para mostrar el estado
+                        });
+                    }
+                }
+            }
+            
+            /**
+             * Valida el formulario completo antes del envío.
+             * @returns {boolean} True si todo el formulario es válido.
+             */
+            function validateCompleteForm() {
+                let isFormValid = true;
+                formQueja.querySelectorAll('input[required], select[required], textarea[required]').forEach(field => {
+                    // Solo validar campos que son visibles
+                    if (field.offsetParent !== null) {
+                        if (!validateField(field)) {
+                            isFormValid = false;
+                        }
                     }
                 });
-        }
-
-        function mostrarSeccionQueja() {
-            const tipoSeleccionado = tipoQuejaSelect.value;
-
-            document.querySelectorAll('.form-group').forEach(group => {
-                group.classList.remove('error', 'success');
-                const errorMsg = group.querySelector('.error-message');
-                if (errorMsg) errorMsg.style.display = 'none';
-            });
-
-            seccionesEspecificas.forEach(seccion => {
-                seccion.style.display = 'none';
-                seccion.querySelectorAll('input, textarea, select').forEach(field => {
-                    field.value = '';
-                    field.removeAttribute('required');
-                });
-            });
-
-            if (tipoSeleccionado && tipoSeleccionado !== '') {
-                const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
-                const seccionAMostrar = document.getElementById(idSeccion);
-                if (seccionAMostrar) {
-                    seccionAMostrar.style.display = 'block';
-                    seccionAMostrar.querySelectorAll('[data-required="true"]').forEach(field => {
-                        field.setAttribute('required', 'required');
-                        validateField(field);
-                    });
-                }
+                return isFormValid;
             }
-        }
 
-        function validateCompleteForm() {
-            let isValid = true;
-            formQueja.querySelectorAll('#numero_empleado, #empresa, #ruta, #colonia, #turno, #tipo').forEach(field => {
-                if (!validateField(field)) {
-                    isValid = false;
+            /**
+             * Intenta obtener la geolocalización del usuario.
+             */
+            function obtenerUbicacion() {
+                if (!navigator.geolocation) {
+                    ubicacionStatus.textContent = 'Tu navegador no soporta la geolocalización.';
+                    ubicacionStatus.className = 'ubicacion-status error show';
+                    return;
                 }
-            });
 
-            const tipoSeleccionado = tipoQuejaSelect.value;
-            if (tipoSeleccionado && tipoSeleccionado !== '') {
-                const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
-                const seccionActiva = document.getElementById(idSeccion);
-                if (seccionActiva) {
-                    seccionActiva.querySelectorAll('[data-required="true"]').forEach(field => {
-                        if (!validateField(field)) {
-                            isValid = false;
-                        }
-                    });
-                }
-            }
-            return isValid;
-        }
-
-        function obtenerUbicacion() {
-            ubicacionStatus.style.display = 'block';
-
-            if (navigator.geolocation) {
                 ubicacionStatus.textContent = 'Obteniendo tu ubicación...';
-                ubicacionStatus.className = 'ubicacion-status loading';
+                ubicacionStatus.className = 'ubicacion-status loading show';
 
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -812,157 +778,144 @@
                         ubicacionStatus.textContent = 'Ubicación obtenida.';
                         ubicacionStatus.className = 'ubicacion-status success show';
                         showNotification('Ubicación obtenida con éxito.', 'success', 3000);
-                        console.log('Ubicación obtenida:', position.coords.latitude, position.coords.longitude);
                     },
                     (error) => {
-                        console.error('Error al obtener la ubicación:', error);
                         latitudInput.value = '';
                         longitudInput.value = '';
-
                         let errorMessage = 'No se pudo obtener la ubicación.';
-                        let statusClass = 'ubicacion-status error';
+                        let statusClass = 'error';
                         let notificationType = 'error';
 
-                        switch (error.code) {
-                            case error.PERMISSION_DENIED:
-                                errorMessage = 'Ubicación denegada por el usuario.';
-                                statusClass = 'ubicacion-status denied';
-                                notificationType = 'warning';
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                errorMessage = 'Información de ubicación no disponible.';
-                                break;
-                            case error.TIMEOUT:
-                                errorMessage = 'Tiempo de espera agotado para obtener la ubicación.';
-                                break;
-                            case error.UNKNOWN_ERROR:
-                                errorMessage = 'Error desconocido al obtener la ubicación.';
-                                break;
+                        if (error.code === error.PERMISSION_DENIED) {
+                            errorMessage = 'Permiso de ubicación denegado.';
+                            statusClass = 'denied';
+                            notificationType = 'warning';
                         }
+                        
                         ubicacionStatus.textContent = errorMessage;
-                        ubicacionStatus.className = statusClass + ' show';
-                        showNotification(errorMessage + ' La queja se enviará sin ubicación.', notificationType, 7000);
+                        ubicacionStatus.className = `ubicacion-status ${statusClass} show`;
+                        showNotification(errorMessage + ' La queja se enviará sin geolocalización.', notificationType, 6000);
                     },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 15000,
-                        maximumAge: 0
-                    }
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                 );
-            } else {
-                ubicacionStatus.textContent = 'Tu navegador no soporta la geolocalización.';
-                ubicacionStatus.className = 'ubicacion-status error show';
-                showNotification('Geolocalización no soportada por este navegador.', 'error', 5000);
-                console.warn('Geolocalización no soportada por el navegador.');
             }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            mostrarSeccionQueja();
-            obtenerUbicacion();
-            loadProgress();
-        });
-
-        tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
-
-        function saveProgress() {
-            const formData = new FormData(formQueja);
-            const data = {};
-            for (let [key, value] of formData.entries()) {
-                if (typeof value === 'string' && value.trim()) {
-                    data[key] = value;
-                } else if (typeof value !== 'string') {
-                    data[key] = value;
-                }
+            
+            /**
+             * Guarda el progreso del formulario en sessionStorage.
+             */
+            function saveProgress() {
+                const formData = new FormData(formQueja);
+                const data = Object.fromEntries(formData.entries());
+                sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
             }
-            data.current_queja_type = tipoQuejaSelect.value;
-            sessionStorage.setItem('queja-progress', JSON.stringify(data));
-        }
 
-        function loadProgress() {
-            const saved = sessionStorage.getItem('queja-progress');
-            if (saved) {
+            /**
+             * Carga el progreso del formulario desde sessionStorage.
+             */
+            function loadProgress() {
+                const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
+                if (!saved) return;
+                
                 try {
                     const data = JSON.parse(saved);
                     Object.entries(data).forEach(([key, value]) => {
-                        const field = document.querySelector(`[name="${key}"]`);
+                        const field = formQueja.elements[key];
                         if (field) {
-                            field.value = value;
+                            if (field.type === 'radio' || field.type === 'checkbox') {
+                                field.checked = field.value === value;
+                            } else {
+                                field.value = value;
+                            }
                         }
                     });
-                    if (data.current_queja_type) {
-                        tipoQuejaSelect.value = data.current_queja_type;
-                    }
                     mostrarSeccionQueja();
-                    document.querySelectorAll('input, textarea, select').forEach(field => validateField(field));
+                    formQueja.querySelectorAll('input, select, textarea').forEach(field => validateField(field));
                     showNotification('Progreso de la queja cargado.', 'info', 3000);
                 } catch (e) {
-                    console.log('No se pudo cargar el progreso guardado:', e);
-                    sessionStorage.removeItem('queja-progress');
+                    console.error('No se pudo cargar el progreso guardado:', e);
+                    sessionStorage.removeItem(SESSION_STORAGE_KEY);
                 }
             }
-        }
 
-        setInterval(saveProgress, 30000);
+            // --- MANEJADORES DE EVENTOS Y EJECUCIÓN INICIAL ---
 
-        formQueja.addEventListener('submit', () => {
-            setTimeout(() => {
-                sessionStorage.removeItem('queja-progress');
-            }, 1000);
-        });
+            // Añadir validación en tiempo real a cada campo
+            formQueja.querySelectorAll('input, select, textarea').forEach(field => {
+                field.addEventListener('input', () => validateField(field));
+                // También validar al perder el foco para una UX más clara
+                field.addEventListener('blur', () => validateField(field));
+            });
 
-        let isSubmitting = false;
+            // Cambiar la sección de queja dinámicamente
+            tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
 
-        formQueja.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            if (isSubmitting) {
-                showNotification('La queja ya se está enviando. Por favor, espera.', 'info', 3000);
-                return;
-            }
-            if (!validateCompleteForm()) {
-                showNotification('Por favor, corrige los errores en el formulario.', 'error');
-                return;
-            }
-            isSubmitting = true;
-            loadingOverlay.style.display = 'flex';
-            submitBtn.disabled = true;
+            // Manejar el envío del formulario
+            formQueja.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (isSubmitting) {
+                    showNotification('La queja ya se está enviando. Por favor, espera.', 'info');
+                    return;
+                }
+                
+                if (!validateCompleteForm()) {
+                    showNotification('Por favor, corrige los errores en el formulario.', 'error');
+                    // Enfocar el primer campo con error
+                    const firstErrorField = formQueja.querySelector('.error input, .error select, .error textarea');
+                    if(firstErrorField) firstErrorField.focus();
+                    return;
+                }
 
-            const formData = new FormData(e.target);
-            const data = {};
-            for (let [key, value] of formData.entries()) {
-                data[key] = sanitizeInput(value);
-            }
+                isSubmitting = true;
+                loadingOverlay.style.display = 'flex';
+                submitBtn.disabled = true;
 
-            try {
-                const res = await fetch('/enviar-queja', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-                const responseData = await res.json();
-                if (res.ok && responseData.success) {
-                    showNotification('¡Queja enviada con éxito! Gracias por tu retroalimentación.', 'success');
-                    formQueja.reset();
-                    mostrarSeccionQueja();
-                    document.querySelectorAll('.form-group').forEach(group => {
-                        group.classList.remove('error', 'success');
-                        const errorMsg = group.querySelector('.error-message');
-                        if (errorMsg) errorMsg.style.display = 'none';
+                const formData = new FormData(e.target);
+                const data = {};
+                for (let [key, value] of formData.entries()) {
+                    data[key] = sanitizeInput(value);
+                }
+
+                try {
+                    // Simulación de envío al backend
+                    console.log("Enviando al backend:", JSON.stringify(data, null, 2));
+                    const res = await fetch('/enviar-queja', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(data)
                     });
-                } else {
-                    showNotification(responseData.error || 'Error al enviar la queja', 'error');
+
+                    const responseData = await res.json();
+
+                    if (res.ok && responseData.success) {
+                        showNotification('¡Queja enviada con éxito! Gracias.', 'success');
+                        formQueja.reset();
+                        // FIX: La limpieza del sessionStorage ahora ocurre solo tras un envío exitoso.
+                        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+                        mostrarSeccionQueja();
+                        formQueja.querySelectorAll('.form-group').forEach(group => {
+                            group.classList.remove('error', 'success', 'is-required');
+                        });
+                    } else {
+                        showNotification(responseData.error || 'Error desconocido al enviar la queja.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error de red al enviar la queja:', error);
+                    showNotification('Hubo un problema de conexión. Inténtalo de nuevo.', 'error');
+                } finally {
+                    isSubmitting = false;
+                    loadingOverlay.style.display = 'none';
+                    submitBtn.disabled = false;
                 }
-            } catch (error) {
-                console.error('Error al enviar la queja:', error);
-                showNotification('Hubo un problema de conexión. Inténtalo de nuevo.', 'error');
-            } finally {
-                loadingOverlay.style.display = 'none';
-                submitBtn.disabled = false;
-                isSubmitting = false;
-            }
+            });
+
+            // --- INICIALIZACIÓN ---
+            loadProgress();
+            obtenerUbicacion();
+            // Guardar progreso cada 30 segundos
+            setInterval(saveProgress, 30000);
         });
     </script>
 </body>
