@@ -1,4 +1,4 @@
-// server.js (Versión 4.3 - Añadido el campo 'numero_unidad')
+// server.js (Versión 4.4 - Con generación de Folio de seguimiento)
 
 // Carga las variables de entorno del archivo .env para uso local.
 require('dotenv').config();
@@ -7,8 +7,9 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const { Pool } = require('pg');
-const cors = require('cors'); // ✅ Usando la librería estándar para CORS
-const rateLimit = require('express-rate-limit'); // ✅ Usando la librería estándar para Rate Limit
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto'); // Módulo nativo de Node.js para generar valores aleatorios
 
 // --- Inicialización de la App ---
 const app = express();
@@ -22,12 +23,10 @@ if (!process.env.DATABASE_URL) {
 }
 
 // --- Middlewares de Seguridad ---
-
-// 1. Configuración de CORS
 const allowedOrigins = [
     process.env.CORS_ORIGIN,
     `https://${process.env.RAILWAY_STATIC_URL}`
-].filter(Boolean); 
+].filter(Boolean);
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -39,12 +38,11 @@ app.use(cors({
     }
 }));
 
-// 2. Configuración de Rate Limiting
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 20, 
-    standardHeaders: true, 
-    legacyHeaders: false, 
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
     message: { success: false, error: 'Demasiadas solicitudes enviadas. Por favor, intente de nuevo en 15 minutos.' }
 });
 
@@ -52,13 +50,13 @@ app.use('/enviar-queja', apiLimiter);
 app.use('/api/quejas/:tipo/:id/resolver', apiLimiter);
 
 // --- Middlewares Generales ---
-app.use(express.json({ limit: '10mb' })); 
-app.use(express.static(path.join(__dirname, 'public'))); 
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Configuración de la Base de Datos PostgreSQL ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } 
+    ssl: { rejectUnauthorized: false }
 });
 
 pool.query('SELECT NOW()')
@@ -69,8 +67,23 @@ pool.query('SELECT NOW()')
     });
 
 // =================================================================
-// 🔥 PATRÓN DE MAPEO: CONFIGURACIÓN CENTRALIZADA DE QUEJAS 🔥
+// 🔥 NUEVA FUNCIÓN PARA GENERAR FOLIO ÚNICO 🔥
 // =================================================================
+function generarFolio() {
+    const fecha = new Date();
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    
+    // Genera 2 bytes aleatorios y los convierte a una cadena hexadecimal de 4 caracteres
+    const aleatorio = crypto.randomBytes(2).toString('hex').toUpperCase();
+    
+    // Formato: QJ-YYYYMMDD-XXXX
+    return `QJ-${anio}${mes}${dia}-${aleatorio}`;
+}
+// =================================================================
+
+// --- PATRÓN DE MAPEO: CONFIGURACIÓN CENTRALIZADA DE QUEJAS ---
 const QUEJAS_CONFIG = {
     'Retraso': {
         tableName: 'quejas_retraso',
@@ -93,39 +106,28 @@ const QUEJAS_CONFIG = {
         fields: ['detalles_otro']
     }
 };
-// =================================================================
 
 // --- RUTAS DEL SERVIDOR ---
 
-// Ruta principal para servir el frontend
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// RUTA POST: Enviar quejas (Actualizada para incluir numero_unidad)
+// RUTA POST: Enviar quejas (Actualizada para generar y devolver un folio)
 app.post('/enviar-queja', async (req, res) => {
     try {
-        // 1. Destructuramos los datos del cuerpo de la solicitud, incluyendo el nuevo campo.
-        const {
-            tipo,
-            numero_empleado,
-            empresa,
-            ruta,
-            colonia,
-            turno,
-            latitud,
-            longitud,
-            numero_unidad, // <--- CAMBIO: Nuevo campo añadido a la extracción
-            ...detalles 
-        } = req.body;
+        const { tipo, numero_empleado, empresa, ruta, colonia, turno, latitud, longitud, numero_unidad, ...detalles } = req.body;
         
         const config = QUEJAS_CONFIG[tipo];
         if (!config) {
             return res.status(400).json({ success: false, error: 'El tipo de queja especificado no es válido.' });
         }
 
-        // 2. Añadimos 'numero_unidad' a la lista de campos comunes.
-        const commonFields = ['numero_empleado', 'empresa', 'ruta', 'colonia', 'turno', 'tipo', 'latitud', 'longitud', 'numero_unidad']; // <--- CAMBIO
+        // 1. Generar el nuevo folio único
+        const nuevoFolio = generarFolio();
+
+        // 2. Añadir 'folio' a la lista de campos comunes
+        const commonFields = ['numero_empleado', 'empresa', 'ruta', 'colonia', 'turno', 'tipo', 'latitud', 'longitud', 'numero_unidad', 'folio'];
         const specificFields = config.fields;
         
         const allFieldNames = [...commonFields, ...specificFields];
@@ -133,11 +135,11 @@ app.post('/enviar-queja', async (req, res) => {
             numero_empleado, empresa, ruta, colonia, turno, tipo,
             latitud || null,
             longitud || null,
-            numero_unidad || null, // <--- CAMBIO: Añadimos el valor (o null) a la lista de valores
+            numero_unidad || null,
+            nuevoFolio, // Añadimos el folio generado a los valores
             ...specificFields.map(field => detalles[field] || null)
         ];
 
-        // 3. Crear la consulta SQL dinámicamente (esta parte no necesita cambios)
         const queryFields = allFieldNames.join(', ');
         const queryValuePlaceholders = allFieldNames.map((_, i) => `$${i + 1}`).join(', ');
 
@@ -149,11 +151,20 @@ app.post('/enviar-queja', async (req, res) => {
         
         const result = await pool.query(query, allValues);
 
-        console.log(`✅ Queja registrada en la tabla '${config.tableName}' con ID: ${result.rows[0].id}`);
-        res.status(201).json({ success: true, message: "¡Queja registrada con éxito!" });
+        console.log(`✅ Queja registrada en tabla '${config.tableName}' con ID: ${result.rows[0].id} y Folio: ${nuevoFolio}`);
+        
+        // 3. Devolver el folio en la respuesta exitosa
+        res.status(201).json({ 
+            success: true, 
+            message: "¡Queja registrada con éxito!",
+            folio: nuevoFolio 
+        });
 
     } catch (error) {
         console.error('❌ Error al procesar la queja:', error);
+        if (error.code === '23505') { // Código de error de PostgreSQL para violación de unicidad
+            return res.status(500).json({ success: false, error: 'Error al generar un folio único. Por favor, inténtelo de nuevo.' });
+        }
         res.status(500).json({ success: false, error: 'Error interno del servidor al procesar la solicitud.' });
     }
 });
@@ -231,7 +242,7 @@ app.use((error, req, res, next) => {
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
     console.log('🚀 ==================================================');
-    console.log(`  Servidor de Quejas v4.3`);
+    console.log(`  Servidor de Quejas v4.4 - Con Folios`);
     console.log(`  Modo: ${NODE_ENV}`);
     console.log(`  Servidor corriendo en: http://localhost:${PORT}`);
     console.log('🚀 ==================================================');

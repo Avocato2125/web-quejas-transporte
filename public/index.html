@@ -9,7 +9,7 @@
     <meta name="robots" content="noindex, nofollow">
 
     <style>
-        /* Variables de color */
+        /* CSS (Sin Cambios) */
         :root {
             --color-primary-dark: #0A1628;
             --color-primary-blue: #1E3A8A;
@@ -26,391 +26,50 @@
             --color-warning: #F59E0B;
             --color-info: #6366F1;
         }
-
-        /* Estilos Generales y del Body */
-        body {
-            font-family: 'Lato', sans-serif;
-            background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-blue) 100%);
-            color: var(--color-text-light);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-            line-height: 1.6;
-        }
-
-        /* Contenedor principal del formulario */
-        .form-container {
-            background: var(--color-white);
-            border-radius: 20px;
-            box-shadow: 0 25px 50px var(--color-shadow);
-            padding: 50px;
-            max-width: 800px;
-            width: 100%;
-            box-sizing: border-box;
-            position: relative;
-            overflow: hidden;
-            animation: fadeInScale 0.8s ease-out;
-        }
-
-        /* Barra superior de acento */
-        .form-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue), var(--color-accent-blue));
-            z-index: 1;
-        }
-
-        /* Animación de entrada para el formulario */
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: translateY(20px) scale(0.98); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        /* Títulos */
-        h2 {
-            font-family: 'Montserrat', sans-serif;
-            text-align: center;
-            color: var(--color-primary-blue);
-            margin-bottom: 40px;
-            font-size: 2.8em;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2.5px;
-            position: relative;
-            padding-bottom: 15px;
-        }
-
-        /* Línea decorativa bajo el título */
-        h2::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120px;
-            height: 4px;
-            background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue));
-            border-radius: 2px;
-        }
-
-        h3 {
-            font-family: 'Montserrat', sans-serif;
-            color: var(--color-primary-blue);
-            margin-top: 35px;
-            margin-bottom: 20px;
-            padding: 15px 25px;
-            background: var(--color-light-blue);
-            border-radius: 10px;
-            font-size: 1.4em;
-            font-weight: 600;
-            letter-spacing: 0.7px;
-            border-left: 6px solid var(--color-accent-blue);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-
-        /* Estilos para Etiquetas y Campos de Entrada */
-        label {
-            display: block;
-            margin-bottom: 10px;
-            color: var(--color-text-dark);
-            font-weight: 700;
-            font-size: 1.05em;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .form-group.is-required label::after {
-            content: ' *';
-            color: var(--color-error);
-            font-weight: bold;
-        }
-
-        input[type="text"],
-        input[type="time"],
-        textarea,
-        select {
-            width: 100%;
-            padding: 16px;
-            margin-bottom: 25px;
-            border: 2px solid var(--color-border);
-            border-radius: 12px;
-            box-sizing: border-box;
-            font-size: 1.05em;
-            color: var(--color-text-dark);
-            background-color: var(--color-white);
-            transition: all 0.3s ease;
-            font-family: 'Lato', sans-serif;
-        }
-
-        select {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background-image: url('data:image/svg+xml;utf8,<svg fill="%233B82F6" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
-            background-repeat: no-repeat;
-            background-position: right 18px center;
-            background-size: 22px;
-            cursor: pointer;
-        }
-
-        input[type="text"]:focus,
-        input[type="time"]:focus,
-        textarea:focus,
-        select:focus {
-            border-color: var(--color-accent-blue);
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
-            outline: none;
-            transform: translateY(-3px);
-            background-color: var(--color-white);
-        }
-        
-        select:invalid {
-            color: #9CA3AF;
-        }
-        select option {
-            color: var(--color-text-dark);
-        }
-        select option[value=""] {
-            color: #9CA3AF;
-        }
-
-        input[type="text"]::placeholder,
-        textarea::placeholder {
-            color: #9CA3AF;
-            font-style: italic;
-        }
-
-        button[type="submit"] {
-            background: linear-gradient(135deg, var(--color-accent-blue), var(--color-primary-blue));
-            color: var(--color-white);
-            padding: 18px 40px;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 1.3em;
-            font-weight: 700;
-            width: 100%;
-            transition: all 0.3s ease;
-            letter-spacing: 1.2px;
-            text-transform: uppercase;
-            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
-            position: relative;
-            overflow: hidden;
-        }
-
-        button[type="submit"]:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 18px 40px rgba(59, 130, 246, 0.5);
-            background: linear-gradient(135deg, var(--color-hover-blue), var(--color-primary-blue));
-        }
-
-        button[type="submit"]:active {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
-        }
-
-        button[type="submit"]::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transition: left 0.6s ease-out;
-        }
-
-        button[type="submit"]:hover::before {
-            left: 100%;
-        }
-
-        button[type="submit"]:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .queja-especifica {
-            display: none;
-            border: 2px solid var(--color-light-blue);
-            background: linear-gradient(135deg, var(--color-white) 0%, var(--color-light-blue) 100%);
-            padding: 35px;
-            margin-top: 35px;
-            margin-bottom: 35px;
-            border-radius: 15px;
-            box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15);
-            position: relative;
-            overflow: hidden;
-            animation: slideInFromLeft 0.6s ease-out;
-        }
-
-        .queja-especifica::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue));
-            border-radius: 15px 15px 0 0;
-        }
-
-        @keyframes slideInFromLeft {
-            from { opacity: 0; transform: translateX(-40px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-            position: relative;
-        }
-        .form-group:last-child {
-            margin-bottom: 0;
-        }
-        
-        .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            border-radius: 20px;
-            z-index: 1000;
-            flex-direction: column;
-            gap: 20px;
-            font-family: 'Montserrat', sans-serif;
-            color: var(--color-primary-blue);
-            font-size: 1.5em;
-            font-weight: 600;
-        }
-
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 6px solid var(--color-light-blue);
-            border-top: 6px solid var(--color-accent-blue);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        #notification-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1001;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-width: 400px;
-            pointer-events: none;
-        }
-
-        .notification {
-            padding: 16px 24px;
-            border-radius: 12px;
-            color: white;
-            font-weight: 600;
-            opacity: 0;
-            transform: translateX(100%);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            pointer-events: all;
-            cursor: pointer;
-        }
-
-        .notification.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
+        body { font-family: 'Lato', sans-serif; background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-blue) 100%); color: var(--color-text-light); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; line-height: 1.6; }
+        .form-container { background: var(--color-white); border-radius: 20px; box-shadow: 0 25px 50px var(--color-shadow); padding: 50px; max-width: 800px; width: 100%; box-sizing: border-box; position: relative; overflow: hidden; animation: fadeInScale 0.8s ease-out; }
+        .form-container::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue), var(--color-accent-blue)); z-index: 1; }
+        @keyframes fadeInScale { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        h2 { font-family: 'Montserrat', sans-serif; text-align: center; color: var(--color-primary-blue); margin-bottom: 40px; font-size: 2.8em; font-weight: 700; text-transform: uppercase; letter-spacing: 2.5px; position: relative; padding-bottom: 15px; }
+        h2::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 120px; height: 4px; background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue)); border-radius: 2px; }
+        h3 { font-family: 'Montserrat', sans-serif; color: var(--color-primary-blue); margin-top: 35px; margin-bottom: 20px; padding: 15px 25px; background: var(--color-light-blue); border-radius: 10px; font-size: 1.4em; font-weight: 600; letter-spacing: 0.7px; border-left: 6px solid var(--color-accent-blue); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        label { display: block; margin-bottom: 10px; color: var(--color-text-dark); font-weight: 700; font-size: 1.05em; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-group.is-required label::after { content: ' *'; color: var(--color-error); font-weight: bold; }
+        input[type="text"], input[type="time"], textarea, select { width: 100%; padding: 16px; margin-bottom: 25px; border: 2px solid var(--color-border); border-radius: 12px; box-sizing: border-box; font-size: 1.05em; color: var(--color-text-dark); background-color: var(--color-white); transition: all 0.3s ease; font-family: 'Lato', sans-serif; }
+        select { appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill="%233B82F6" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); background-repeat: no-repeat; background-position: right 18px center; background-size: 22px; cursor: pointer; }
+        input[type="text"]:focus, input[type="time"]:focus, textarea:focus, select:focus { border-color: var(--color-accent-blue); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2); outline: none; transform: translateY(-3px); background-color: var(--color-white); }
+        select:invalid { color: #9CA3AF; }
+        select option { color: var(--color-text-dark); }
+        select option[value=""] { color: #9CA3AF; }
+        input[type="text"]::placeholder, textarea::placeholder { color: #9CA3AF; font-style: italic; }
+        button[type="submit"] { background: linear-gradient(135deg, var(--color-accent-blue), var(--color-primary-blue)); color: var(--color-white); padding: 18px 40px; border: none; border-radius: 12px; cursor: pointer; font-size: 1.3em; font-weight: 700; width: 100%; transition: all 0.3s ease; letter-spacing: 1.2px; text-transform: uppercase; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4); position: relative; overflow: hidden; }
+        button[type="submit"]:hover { transform: translateY(-5px); box-shadow: 0 18px 40px rgba(59, 130, 246, 0.5); background: linear-gradient(135deg, var(--color-hover-blue), var(--color-primary-blue)); }
+        button[type="submit"]:active { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3); }
+        button[type="submit"]::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); transition: left 0.6s ease-out; }
+        button[type="submit"]:hover::before { left: 100%; }
+        button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+        .queja-especifica { display: none; border: 2px solid var(--color-light-blue); background: linear-gradient(135deg, var(--color-white) 0%, var(--color-light-blue) 100%); padding: 35px; margin-top: 35px; margin-bottom: 35px; border-radius: 15px; box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15); position: relative; overflow: hidden; animation: slideInFromLeft 0.6s ease-out; }
+        .queja-especifica::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue)); border-radius: 15px 15px 0 0; }
+        @keyframes slideInFromLeft { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
+        .form-group { margin-bottom: 25px; position: relative; }
+        .form-group:last-child { margin-bottom: 0; }
+        .loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.9); display: none; align-items: center; justify-content: center; border-radius: 20px; z-index: 1000; flex-direction: column; gap: 20px; font-family: 'Montserrat', sans-serif; color: var(--color-primary-blue); font-size: 1.5em; font-weight: 600; }
+        .loading-spinner { width: 60px; height: 60px; border: 6px solid var(--color-light-blue); border-top: 6px solid var(--color-accent-blue); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #notification-container { position: fixed; top: 20px; right: 20px; z-index: 1001; display: flex; flex-direction: column; gap: 10px; max-width: 400px; pointer-events: none; }
+        .notification { padding: 16px 24px; border-radius: 12px; color: white; font-weight: 600; opacity: 0; transform: translateX(100%); transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2); pointer-events: all; cursor: pointer; }
+        .notification.show { opacity: 1; transform: translateX(0); }
         .notification.success { background: var(--color-success); }
         .notification.error { background: var(--color-error); }
         .notification.info { background: var(--color-info); }
         .notification.warning { background: var(--color-warning); color: var(--color-text-dark); }
-
-        .form-group.error input,
-        .form-group.error textarea,
-        .form-group.error select {
-            border-color: var(--color-error);
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
-        }
-
-        .form-group.success input,
-        .form-group.success textarea,
-        .form-group.success select {
-            border-color: var(--color-success);
-            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
-        }
-
-        .error-message {
-            color: var(--color-error);
-            font-size: 0.875em;
-            margin-top: -15px;
-            margin-bottom: 15px;
-            display: none;
-            font-weight: 600;
-        }
-        
-        #ubicacion-status {
-            text-align: center;
-            min-height: 30px;
-            margin-bottom: 20px;
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-size: 0.9em;
-            font-weight: 600;
-            color: var(--color-text-dark);
-            background-color: var(--color-border);
-            transition: all 0.3s ease;
-            opacity: 0;
-            pointer-events: none;
-        }
-        #ubicacion-status.show {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            .form-container { padding: 30px 25px; margin: 10px; border-radius: 15px; }
-            h2 { font-size: 2.2em; margin-bottom: 30px; letter-spacing: 2px; }
-            h2::after { width: 80px; }
-            h3 { font-size: 1.2em; padding: 12px 15px; }
-            label { font-size: 0.95em; }
-            input, select, textarea { padding: 14px; font-size: 16px; }
-            button[type="submit"] { padding: 16px 30px; font-size: 1.1em; }
-            .queja-especifica { padding: 25px 20px; }
-            #notification-container {
-                right: 10px;
-                left: 10px;
-                max-width: none;
-                top: 10px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            h2 { font-size: 1.8em; letter-spacing: 1.5px; }
-            .form-container { padding: 25px 20px; }
-            button[type="submit"] { font-size: 1em; padding: 15px 25px; }
-        }
+        .form-group.error input, .form-group.error textarea, .form-group.error select { border-color: var(--color-error); box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15); }
+        .form-group.success input, .form-group.success textarea, .form-group.success select { border-color: var(--color-success); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15); }
+        .error-message { color: var(--color-error); font-size: 0.875em; margin-top: -15px; margin-bottom: 15px; display: none; font-weight: 600; }
+        #ubicacion-status { text-align: center; min-height: 30px; margin-bottom: 20px; padding: 8px 15px; border-radius: 8px; font-size: 0.9em; font-weight: 600; color: var(--color-text-dark); background-color: var(--color-border); transition: all 0.3s ease; opacity: 0; pointer-events: none; }
+        #ubicacion-status.show { opacity: 1; pointer-events: all; }
+        @media (max-width: 768px) { body { padding: 10px; } .form-container { padding: 30px 25px; margin: 10px; border-radius: 15px; } h2 { font-size: 2.2em; margin-bottom: 30px; letter-spacing: 2px; } h2::after { width: 80px; } h3 { font-size: 1.2em; padding: 12px 15px; } label { font-size: 0.95em; } input, select, textarea { padding: 14px; font-size: 16px; } button[type="submit"] { padding: 16px 30px; font-size: 1.1em; } .queja-especifica { padding: 25px 20px; } #notification-container { right: 10px; left: 10px; max-width: none; top: 10px; } }
+        @media (max-width: 480px) { h2 { font-size: 1.8em; letter-spacing: 1.5px; } .form-container { padding: 25px 20px; } button[type="submit"] { font-size: 1em; padding: 15px 25px; } }
     </style>
 </head>
 <body>
@@ -577,12 +236,11 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-
             const formQueja = document.getElementById('form-queja');
             const tipoQuejaSelect = document.getElementById('tipo');
             const seccionesEspecificas = document.querySelectorAll('.queja-especifica');
             const loadingOverlay = document.getElementById('loadingOverlay');
-            const loadingText = document.getElementById('loading-text'); // Referencia al texto de carga
+            const loadingText = document.getElementById('loading-text');
             const submitBtn = document.getElementById('submitBtn');
             const notificationContainer = document.getElementById('notification-container');
             const latitudInput = document.getElementById('latitud');
@@ -591,7 +249,7 @@
             const SESSION_STORAGE_KEY = 'queja-progress';
             let isSubmitting = false;
 
-            // --- FUNCIONES (SIN CAMBIOS) ---
+            // --- Funciones auxiliares (sin cambios) ---
             function showNotification(message, type = 'success', duration = 5000) {
                 const notification = document.createElement('div');
                 notification.className = `notification ${type}`;
@@ -685,15 +343,43 @@
                 });
                 return isFormValid;
             }
-            
+
+            function saveProgress() {
+                const formData = new FormData(formQueja);
+                const data = Object.fromEntries(formData.entries());
+                sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+            }
+
+            function loadProgress() {
+                const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
+                if (!saved) return;
+                try {
+                    const data = JSON.parse(saved);
+                    Object.entries(data).forEach(([key, value]) => {
+                        const field = formQueja.elements[key];
+                        if (field) {
+                            if (field.type === 'radio' || field.type === 'checkbox') {
+                                field.checked = field.value === value;
+                            } else {
+                                field.value = value;
+                            }
+                        }
+                    });
+                    mostrarSeccionQueja();
+                    formQueja.querySelectorAll('input, select, textarea').forEach(field => validateField(field));
+                    showNotification('Progreso de la queja cargado.', 'info', 3000);
+                } catch (e) {
+                    console.error('No se pudo cargar el progreso guardado:', e);
+                    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+                }
+            }
+
             // ======================================================
-            // INICIO DE LA MODIFICACIÓN
+            // INICIO DE LAS MODIFICACIONES
             // ======================================================
 
             /**
              * MODIFICACIÓN: La función de geolocalización ahora devuelve una Promesa.
-             * Esto nos permite "esperar" a que termine antes de continuar.
-             * @returns {Promise<object|null>} Resuelve con un objeto { lat, lon } o null si falla.
              */
             function obtenerUbicacion() {
                 return new Promise((resolve) => {
@@ -702,9 +388,7 @@
                         resolve(null);
                         return;
                     }
-
                     const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
                             resolve({
@@ -735,7 +419,7 @@
             tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
 
             /**
-             * MODIFICACIÓN: La lógica de envío ahora integra la llamada a la geolocalización.
+             * MODIFICACIÓN: La lógica de envío ahora integra la geolocalización y muestra el folio.
              */
             formQueja.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -752,20 +436,16 @@
                 loadingOverlay.style.display = 'flex';
                 submitBtn.disabled = true;
 
-                // 1. Inicia el proceso mostrando un mensaje al usuario
                 loadingText.textContent = 'Obteniendo ubicación...';
                 
-                // 2. Llamamos a la función y "esperamos" el resultado
                 const ubicacion = await obtenerUbicacion(); 
                 
-                // 3. Si se obtuvo, se actualizan los campos ocultos del formulario
                 if (ubicacion) {
                     latitudInput.value = ubicacion.lat;
                     longitudInput.value = ubicacion.lon;
                     showNotification('Ubicación obtenida con éxito.', 'success', 2000);
                 }
                 
-                // 4. Se continúa con el envío, con o sin ubicación
                 loadingText.textContent = 'Enviando queja...';
 
                 const formData = new FormData(formQueja);
@@ -783,7 +463,13 @@
                     const responseData = await res.json();
 
                     if (res.ok && responseData.success) {
-                        showNotification('¡Queja enviada con éxito! Gracias.', 'success');
+                        // CAMBIO CLAVE: MOSTRAR EL FOLIO AL USUARIO
+                        const folio = responseData.folio;
+                        const successMessage = `¡Queja enviada! Tu folio es: ${folio}. Guárdalo para futuras referencias.`;
+                        
+                        // Usamos una duración más larga para que el usuario pueda copiar el folio
+                        showNotification(successMessage, 'success', 15000); 
+                        
                         formQueja.reset();
                         sessionStorage.removeItem(SESSION_STORAGE_KEY);
                         mostrarSeccionQueja();
@@ -805,12 +491,9 @@
             });
 
             // --- INICIALIZACIÓN ---
+            loadProgress();
+            setInterval(saveProgress, 30000);
             
-            // MODIFICACIÓN: Ya no se obtiene la ubicación al cargar la página
-            // loadProgress();
-            
-            // setInterval(saveProgress, 30000);
-
             // ======================================================
             // FIN DE LA MODIFICACIÓN
             // ======================================================
