@@ -29,13 +29,8 @@
         body { font-family: 'Lato', sans-serif; background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-blue) 100%); color: var(--color-text-light); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; line-height: 1.6; }
         .form-container { background: var(--color-white); border-radius: 20px; box-shadow: 0 25px 50px var(--color-shadow); padding: 50px; max-width: 800px; width: 100%; box-sizing: border-box; position: relative; overflow: hidden; animation: fadeInScale 0.8s ease-out; }
         
-        /* --- ESTILOS PARA EL MODAL DE FOLIO --- */
-        .folio-modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(10, 22, 40, 0.85); display: flex;
-            justify-content: center; align-items: center; z-index: 2000;
-            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
+        /* Estilos para el Modal de Folio */
+        .folio-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(10, 22, 40, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
         .folio-modal-overlay.visible { opacity: 1; visibility: visible; }
         .folio-modal-content { background: var(--color-white); color: var(--color-text-dark); padding: 40px; border-radius: 20px; text-align: center; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; transform: scale(0.95); transition: transform 0.3s ease; }
         .folio-modal-overlay.visible .folio-modal-content { transform: scale(1); }
@@ -96,6 +91,7 @@
             <div class="loading-spinner"></div>
             <span id="loading-text">Enviando queja...</span>
         </div>
+
         <h2>Quejas Transporte de Personal</h2>
 
         <form id="form-queja">
@@ -197,11 +193,61 @@
                 </div>
             </div>
 
-            <div id="seccion-Mal_trato" class="queja-especifica"> ... </div>
-            <div id="seccion-Inseguridad" class="queja-especifica"> ... </div>
-            <div id="seccion-Unidad_en_mal_estado" class="queja-especifica"> ... </div>
-            <div id="seccion-Otro" class="queja-especifica"> ... </div>
+            <div id="seccion-Mal_trato" class="queja-especifica">
+                <h3>Detalles de Mal Trato / Mala Actitud</h3>
+                <div class="form-group">
+                    <label for="nombre_conductor_maltrato">Nombre/Unidad del conductor (Opcional):</label>
+                    <input type="text" id="nombre_conductor_maltrato" name="nombre_conductor_maltrato" placeholder="Ej: Conductor Juan Pérez / Unidad #456" maxlength="100">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="detalles_maltrato">Describe lo ocurrido:</label>
+                    <textarea id="detalles_maltrato" name="detalles_maltrato" rows="4" placeholder="Ej: El conductor usó lenguaje inapropiado..." data-required="true" maxlength="1000"></textarea>
+                    <div class="error-message"></div>
+                </div>
+            </div>
 
+            <div id="seccion-Inseguridad" class="queja-especifica">
+                <h3>Detalles de Inseguridad / Conducción Peligrosa</h3>
+                <div class="form-group">
+                    <label for="detalles_inseguridad">Describe la situación:</label>
+                    <textarea id="detalles_inseguridad" name="detalles_inseguridad" rows="4" placeholder="Ej: El conductor excedía el límite de velocidad..." data-required="true" maxlength="1000"></textarea>
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="ubicacion_inseguridad">Ubicación del incidente (Opcional):</label>
+                    <input type="text" id="ubicacion_inseguridad" name="ubicacion_inseguridad" placeholder="Ej: En la intersección de Av. Central y Calle Juárez" maxlength="200">
+                    <div class="error-message"></div>
+                </div>
+            </div>
+
+            <div id="seccion-Unidad_en_mal_estado" class="queja-especifica">
+                <h3>Detalles de Unidad en Mal Estado</h3>
+                <div class="form-group">
+                    <label for="numero_unidad_malestado">Número de Unidad (Opcional):</label>
+                    <input type="text" id="numero_unidad_malestado" name="numero_unidad_malestado" placeholder="Ej: Unidad 789" maxlength="50">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="tipo_falla">Tipo de falla o daño:</label>
+                    <input type="text" id="tipo_falla" name="tipo_falla" placeholder="Ej: Asientos rotos, Aire acondicionado no funciona" data-required="true" maxlength="200">
+                    <div class="error-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="detalles_malestado">Describe el estado de la unidad:</label>
+                    <textarea id="detalles_malestado" name="detalles_malestado" rows="4" placeholder="Ej: La unidad olía a gasolina, los cinturones no servían..." data-required="true" maxlength="1000"></textarea>
+                    <div class="error-message"></div>
+                </div>
+            </div>
+
+            <div id="seccion-Otro" class="queja-especifica">
+                <h3>Otros Detalles</h3>
+                <div class="form-group">
+                    <label for="detalles_otro">Describe tu queja:</label>
+                    <textarea id="detalles_otro" name="detalles_otro" rows="5" data-required="true" placeholder="Por favor, sé lo más específico posible." maxlength="1000"></textarea>
+                    <div class="error-message"></div>
+                </div>
+            </div>
             <input type="hidden" id="latitud" name="latitud">
             <input type="hidden" id="longitud" name="longitud">
             
