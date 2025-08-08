@@ -1,4 +1,4 @@
-// server.js (Versión 4.4 - Con generación de Folio de seguimiento)
+// server.js (Versión 4.5 - Añadidos campos de transporte alterno)
 
 // Carga las variables de entorno del archivo .env para uso local.
 require('dotenv').config();
@@ -9,7 +9,7 @@ const path = require('path');
 const { Pool } = require('pg');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const crypto = require('crypto'); // Módulo nativo de Node.js para generar valores aleatorios
+const crypto = require('crypto');
 
 // --- Inicialización de la App ---
 const app = express();
@@ -66,28 +66,32 @@ pool.query('SELECT NOW()')
         process.exit(1);
     });
 
-// =================================================================
-// 🔥 NUEVA FUNCIÓN PARA GENERAR FOLIO ÚNICO 🔥
-// =================================================================
+// --- Función para Generar Folio Único ---
 function generarFolio() {
     const fecha = new Date();
     const anio = fecha.getFullYear();
     const mes = String(fecha.getMonth() + 1).padStart(2, '0');
     const dia = String(fecha.getDate()).padStart(2, '0');
-    
-    // Genera 2 bytes aleatorios y los convierte a una cadena hexadecimal de 4 caracteres
     const aleatorio = crypto.randomBytes(2).toString('hex').toUpperCase();
-    
-    // Formato: QJ-YYYYMMDD-XXXX
     return `QJ-${anio}${mes}${dia}-${aleatorio}`;
 }
-// =================================================================
 
-// --- PATRÓN DE MAPEO: CONFIGURACIÓN CENTRALIZADA DE QUEJAS ---
+// =================================================================
+// 🔥 PATRÓN DE MAPEO: CONFIGURACIÓN CENTRALIZADA DE QUEJAS 🔥
+// =================================================================
 const QUEJAS_CONFIG = {
     'Retraso': {
         tableName: 'quejas_retraso',
-        fields: ['detalles_retraso', 'direccion_subida', 'hora_programada', 'hora_llegada']
+        // --- CAMBIO CLAVE AQUÍ ---
+        fields: [
+            'detalles_retraso', 
+            'direccion_subida', 
+            'hora_programada', 
+            'hora_llegada',
+            'metodo_transporte_alterno', // <-- Añadido
+            'monto_gastado',             // <-- Añadido
+            'hora_llegada_planta'      // <-- Añadido
+        ]
     },
     'Mal trato': {
         tableName: 'quejas_mal_trato',
@@ -113,7 +117,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// RUTA POST: Enviar quejas (Actualizada para generar y devolver un folio)
+// La ruta POST no necesita cambios lógicos, ya que el patrón de mapeo se encarga de todo.
 app.post('/enviar-queja', async (req, res) => {
     try {
         const { tipo, numero_empleado, empresa, ruta, colonia, turno, latitud, longitud, numero_unidad, ...detalles } = req.body;
@@ -123,10 +127,7 @@ app.post('/enviar-queja', async (req, res) => {
             return res.status(400).json({ success: false, error: 'El tipo de queja especificado no es válido.' });
         }
 
-        // 1. Generar el nuevo folio único
         const nuevoFolio = generarFolio();
-
-        // 2. Añadir 'folio' a la lista de campos comunes
         const commonFields = ['numero_empleado', 'empresa', 'ruta', 'colonia', 'turno', 'tipo', 'latitud', 'longitud', 'numero_unidad', 'folio'];
         const specificFields = config.fields;
         
@@ -136,7 +137,7 @@ app.post('/enviar-queja', async (req, res) => {
             latitud || null,
             longitud || null,
             numero_unidad || null,
-            nuevoFolio, // Añadimos el folio generado a los valores
+            nuevoFolio,
             ...specificFields.map(field => detalles[field] || null)
         ];
 
@@ -153,7 +154,6 @@ app.post('/enviar-queja', async (req, res) => {
 
         console.log(`✅ Queja registrada en tabla '${config.tableName}' con ID: ${result.rows[0].id} y Folio: ${nuevoFolio}`);
         
-        // 3. Devolver el folio en la respuesta exitosa
         res.status(201).json({ 
             success: true, 
             message: "¡Queja registrada con éxito!",
@@ -162,14 +162,14 @@ app.post('/enviar-queja', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Error al procesar la queja:', error);
-        if (error.code === '23505') { // Código de error de PostgreSQL para violación de unicidad
+        if (error.code === '23505') {
             return res.status(500).json({ success: false, error: 'Error al generar un folio único. Por favor, inténtelo de nuevo.' });
         }
         res.status(500).json({ success: false, error: 'Error interno del servidor al procesar la solicitud.' });
     }
 });
 
-// RUTA GET para obtener todas las quejas de todas las tablas
+// El resto de las rutas no necesitan cambios
 app.get('/api/quejas', async (req, res) => {
     try {
         const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
@@ -187,7 +187,6 @@ app.get('/api/quejas', async (req, res) => {
     }
 });
 
-// RUTA PUT para actualizar el estado de una queja
 app.put('/api/quejas/:tipo/:id/resolver', async (req, res) => {
     try {
         const { tipo, id } = req.params;
@@ -242,7 +241,7 @@ app.use((error, req, res, next) => {
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
     console.log('🚀 ==================================================');
-    console.log(`  Servidor de Quejas v4.4 - Con Folios`);
+    console.log(`  Servidor de Quejas v4.5 - Transporte Alterno`);
     console.log(`  Modo: ${NODE_ENV}`);
     console.log(`  Servidor corriendo en: http://localhost:${PORT}`);
     console.log('🚀 ==================================================');
