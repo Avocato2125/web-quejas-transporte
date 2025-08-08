@@ -1,4 +1,4 @@
-// server.js (Versión 4.5 - Añadidos campos de transporte alterno)
+// server.js (Versión 4.6 - Manejo robusto de campos de hora)
 
 // Carga las variables de entorno del archivo .env para uso local.
 require('dotenv').config();
@@ -76,21 +76,18 @@ function generarFolio() {
     return `QJ-${anio}${mes}${dia}-${aleatorio}`;
 }
 
-// =================================================================
-// 🔥 PATRÓN DE MAPEO: CONFIGURACIÓN CENTRALIZADA DE QUEJAS 🔥
-// =================================================================
+// --- PATRÓN DE MAPEO: CONFIGURACIÓN CENTRALIZADA DE QUEJAS ---
 const QUEJAS_CONFIG = {
     'Retraso': {
         tableName: 'quejas_retraso',
-        // --- CAMBIO CLAVE AQUÍ ---
         fields: [
             'detalles_retraso', 
             'direccion_subida', 
             'hora_programada', 
             'hora_llegada',
-            'metodo_transporte_alterno', // <-- Añadido
-            'monto_gastado',             // <-- Añadido
-            'hora_llegada_planta'      // <-- Añadido
+            'metodo_transporte_alterno',
+            'monto_gastado',
+            'hora_llegada_planta'
         ]
     },
     'Mal trato': {
@@ -117,7 +114,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// La ruta POST no necesita cambios lógicos, ya que el patrón de mapeo se encarga de todo.
 app.post('/enviar-queja', async (req, res) => {
     try {
         const { tipo, numero_empleado, empresa, ruta, colonia, turno, latitud, longitud, numero_unidad, ...detalles } = req.body;
@@ -138,7 +134,10 @@ app.post('/enviar-queja', async (req, res) => {
             longitud || null,
             numero_unidad || null,
             nuevoFolio,
-            ...specificFields.map(field => detalles[field] || null)
+            // --- INICIO DE LA MODIFICACIÓN ---
+            // Se asegura de que los campos vacíos se envíen como NULL a la base de datos.
+            ...specificFields.map(field => (detalles[field] === '' ? null : detalles[field]))
+            // --- FIN DE LA MODIFICACIÓN ---
         ];
 
         const queryFields = allFieldNames.join(', ');
@@ -169,7 +168,6 @@ app.post('/enviar-queja', async (req, res) => {
     }
 });
 
-// El resto de las rutas no necesitan cambios
 app.get('/api/quejas', async (req, res) => {
     try {
         const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
@@ -241,7 +239,7 @@ app.use((error, req, res, next) => {
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
     console.log('🚀 ==================================================');
-    console.log(`  Servidor de Quejas v4.5 - Transporte Alterno`);
+    console.log(`  Servidor de Quejas v4.6 - Manejo robusto de NULLs`);
     console.log(`  Modo: ${NODE_ENV}`);
     console.log(`  Servidor corriendo en: http://localhost:${PORT}`);
     console.log('🚀 ==================================================');
