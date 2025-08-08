@@ -127,7 +127,6 @@
             letter-spacing: 0.5px;
         }
         
-        /* FIX: Selector corregido para aplicar el asterisco solo a campos requeridos */
         .form-group.is-required label::after {
             content: ' *';
             color: var(--color-error);
@@ -240,7 +239,6 @@
             box-shadow: none;
         }
 
-        /* Estilos para las Secciones Específicas de Queja */
         .queja-especifica {
             display: none;
             border: 2px solid var(--color-light-blue);
@@ -279,7 +277,6 @@
             margin-bottom: 0;
         }
         
-        /* Overlay de carga */
         .loading-overlay {
             position: absolute;
             top: 0;
@@ -314,7 +311,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Estilos de notificación flotante */
         #notification-container {
             position: fixed;
             top: 20px;
@@ -350,7 +346,6 @@
         .notification.info { background: var(--color-info); }
         .notification.warning { background: var(--color-warning); color: var(--color-text-dark); }
 
-        /* Validación visual y mensajes de error por campo */
         .form-group.error input,
         .form-group.error textarea,
         .form-group.error select {
@@ -374,7 +369,6 @@
             font-weight: 600;
         }
         
-        /* Estilos para el estado de la ubicación */
         #ubicacion-status {
             text-align: center;
             min-height: 30px;
@@ -394,29 +388,6 @@
             pointer-events: all;
         }
 
-        #ubicacion-status.loading {
-            background-color: rgba(99, 102, 241, 0.15);
-            color: var(--color-info);
-            border: 1px solid var(--color-info);
-        }
-        #ubicacion-status.success {
-            background-color: rgba(16, 185, 129, 0.15);
-            color: var(--color-success);
-            border: 1px solid var(--color-success);
-        }
-        #ubicacion-status.error {
-            background-color: rgba(239, 68, 68, 0.15);
-            color: var(--color-error);
-            border: 1px solid var(--color-error);
-        }
-        #ubicacion-status.denied {
-            background-color: rgba(245, 158, 11, 0.15);
-            color: var(--color-warning);
-            border: 1px solid var(--color-warning);
-            font-weight: bold;
-        }
-
-        /* Responsividad */
         @media (max-width: 768px) {
             body { padding: 10px; }
             .form-container { padding: 30px 25px; margin: 10px; border-radius: 15px; }
@@ -605,44 +576,32 @@
     <div id="notification-container"></div>
 
     <script>
-        // FIX: Todo el script está encapsulado para proteger el ámbito global.
         document.addEventListener('DOMContentLoaded', () => {
 
-            // --- CONSTANTES Y SELECTORES DEL DOM ---
             const formQueja = document.getElementById('form-queja');
             const tipoQuejaSelect = document.getElementById('tipo');
             const seccionesEspecificas = document.querySelectorAll('.queja-especifica');
             const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingText = document.getElementById('loading-text'); // Referencia al texto de carga
             const submitBtn = document.getElementById('submitBtn');
             const notificationContainer = document.getElementById('notification-container');
             const latitudInput = document.getElementById('latitud');
             const longitudInput = document.getElementById('longitud');
-            const ubicacionStatus = document.getElementById('ubicacion-status');
             
             const SESSION_STORAGE_KEY = 'queja-progress';
             let isSubmitting = false;
 
-            // --- FUNCIONES ---
-
-            /**
-             * Muestra una notificación flotante.
-             * @param {string} message El mensaje a mostrar.
-             * @param {'success'|'error'|'info'|'warning'} type El tipo de notificación.
-             * @param {number} duration Duración en milisegundos.
-             */
+            // --- FUNCIONES (SIN CAMBIOS) ---
             function showNotification(message, type = 'success', duration = 5000) {
                 const notification = document.createElement('div');
                 notification.className = `notification ${type}`;
                 notification.textContent = message;
-
                 notificationContainer.appendChild(notification);
                 setTimeout(() => notification.classList.add('show'), 100);
-
                 const removeNotification = () => {
                     notification.classList.remove('show');
                     notification.addEventListener('transitionend', () => notification.remove(), { once: true });
                 };
-
                 const timer = setTimeout(removeNotification, duration);
                 notification.addEventListener('click', () => {
                     clearTimeout(timer);
@@ -650,29 +609,19 @@
                 });
             }
 
-            /**
-             * Valida un campo individual y actualiza la UI.
-             * @param {HTMLElement} field El campo del formulario a validar.
-             * @returns {boolean} True si el campo es válido, false en caso contrario.
-             */
             function validateField(field) {
                 const formGroup = field.closest('.form-group');
                 if (!formGroup) return true;
-
                 const errorMessage = formGroup.querySelector('.error-message');
                 let isValid = true;
                 let message = '';
-                
-                // FIX: Lógica para añadir una clase al contenedor si el campo es requerido.
                 if (field.hasAttribute('required')) {
                     formGroup.classList.add('is-required');
                 } else {
                     formGroup.classList.remove('is-required');
                 }
-
                 formGroup.classList.remove('error', 'success');
                 if (errorMessage) errorMessage.style.display = 'none';
-
                 if (field.hasAttribute('required') && !field.value.trim()) {
                     isValid = false;
                     message = 'Este campo es requerido.';
@@ -683,7 +632,6 @@
                         message = `Debe tener al menos ${minLength} caracteres.`;
                     }
                 }
-
                 if (!isValid) {
                     formGroup.classList.add('error');
                     if (errorMessage) {
@@ -693,46 +641,26 @@
                 } else if (field.value.trim()) {
                     formGroup.classList.add('success');
                 }
-                
                 return isValid;
             }
 
-            /**
-             * Escapa caracteres HTML para prevenir XSS.
-             * @param {string} value El texto a sanitizar.
-             * @returns {string} El texto sanitizado.
-             */
             function sanitizeInput(value) {
                 if (typeof value !== 'string') return value;
-                const map = {
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#x27;',
-                    '/': '&#x2F;',
-                };
+                const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;', '/': '&#x2F;' };
                 const reg = /[&<>"'/]/ig;
-                // FIX: La función ahora reemplaza solo los caracteres peligrosos y no elimina el resto.
                 return value.trim().replace(reg, (match) => map[match]);
             }
 
-            /**
-             * Muestra la sección de queja correcta y gestiona los campos requeridos.
-             */
             function mostrarSeccionQueja() {
                 const tipoSeleccionado = tipoQuejaSelect.value;
-
                 seccionesEspecificas.forEach(seccion => {
                     seccion.style.display = 'none';
                     seccion.querySelectorAll('input, textarea').forEach(field => {
                         field.removeAttribute('required');
-                        // Limpiar clases de validación al ocultar
                         const formGroup = field.closest('.form-group');
                         if(formGroup) formGroup.classList.remove('error', 'success', 'is-required');
                     });
                 });
-
                 if (tipoSeleccionado) {
                     const idSeccion = 'seccion-' + tipoSeleccionado.replace(/ /g, '_');
                     const seccionAMostrar = document.getElementById(idSeccion);
@@ -740,20 +668,15 @@
                         seccionAMostrar.style.display = 'block';
                         seccionAMostrar.querySelectorAll('[data-required="true"]').forEach(field => {
                             field.setAttribute('required', 'required');
-                            validateField(field); // Re-validar para mostrar el estado
+                            validateField(field);
                         });
                     }
                 }
             }
             
-            /**
-             * Valida el formulario completo antes del envío.
-             * @returns {boolean} True si todo el formulario es válido.
-             */
             function validateCompleteForm() {
                 let isFormValid = true;
                 formQueja.querySelectorAll('input[required], select[required], textarea[required]').forEach(field => {
-                    // Solo validar campos que son visibles
                     if (field.offsetParent !== null) {
                         if (!validateField(field)) {
                             isFormValid = false;
@@ -762,109 +685,64 @@
                 });
                 return isFormValid;
             }
+            
+            // ======================================================
+            // INICIO DE LA MODIFICACIÓN
+            // ======================================================
 
             /**
-             * Intenta obtener la geolocalización del usuario.
+             * MODIFICACIÓN: La función de geolocalización ahora devuelve una Promesa.
+             * Esto nos permite "esperar" a que termine antes de continuar.
+             * @returns {Promise<object|null>} Resuelve con un objeto { lat, lon } o null si falla.
              */
             function obtenerUbicacion() {
-                if (!navigator.geolocation) {
-                    ubicacionStatus.textContent = 'Tu navegador no soporta la geolocalización.';
-                    ubicacionStatus.className = 'ubicacion-status error show';
-                    return;
-                }
+                return new Promise((resolve) => {
+                    if (!navigator.geolocation) {
+                        showNotification('Tu navegador no soporta geolocalización.', 'error');
+                        resolve(null);
+                        return;
+                    }
 
-                ubicacionStatus.textContent = 'Obteniendo tu ubicación...';
-                ubicacionStatus.className = 'ubicacion-status loading show';
+                    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        latitudInput.value = position.coords.latitude;
-                        longitudInput.value = position.coords.longitude;
-                        ubicacionStatus.textContent = 'Ubicación obtenida.';
-                        ubicacionStatus.className = 'ubicacion-status success show';
-                        showNotification('Ubicación obtenida con éxito.', 'success', 3000);
-                    },
-                    (error) => {
-                        latitudInput.value = '';
-                        longitudInput.value = '';
-                        let errorMessage = 'No se pudo obtener la ubicación.';
-                        let statusClass = 'error';
-                        let notificationType = 'error';
-
-                        if (error.code === error.PERMISSION_DENIED) {
-                            errorMessage = 'Permiso de ubicación denegado.';
-                            statusClass = 'denied';
-                            notificationType = 'warning';
-                        }
-                        
-                        ubicacionStatus.textContent = errorMessage;
-                        ubicacionStatus.className = `ubicacion-status ${statusClass} show`;
-                        showNotification(errorMessage + ' La queja se enviará sin geolocalización.', notificationType, 6000);
-                    },
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                );
-            }
-            
-            /**
-             * Guarda el progreso del formulario en sessionStorage.
-             */
-            function saveProgress() {
-                const formData = new FormData(formQueja);
-                const data = Object.fromEntries(formData.entries());
-                sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
-            }
-
-            /**
-             * Carga el progreso del formulario desde sessionStorage.
-             */
-            function loadProgress() {
-                const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
-                if (!saved) return;
-                
-                try {
-                    const data = JSON.parse(saved);
-                    Object.entries(data).forEach(([key, value]) => {
-                        const field = formQueja.elements[key];
-                        if (field) {
-                            if (field.type === 'radio' || field.type === 'checkbox') {
-                                field.checked = field.value === value;
-                            } else {
-                                field.value = value;
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            resolve({
+                                lat: position.coords.latitude,
+                                lon: position.coords.longitude
+                            });
+                        },
+                        (error) => {
+                            let msg = 'No se pudo obtener la ubicación.';
+                            if (error.code === error.PERMISSION_DENIED) {
+                                msg = 'Permiso de ubicación denegado.';
                             }
-                        }
-                    });
-                    mostrarSeccionQueja();
-                    formQueja.querySelectorAll('input, select, textarea').forEach(field => validateField(field));
-                    showNotification('Progreso de la queja cargado.', 'info', 3000);
-                } catch (e) {
-                    console.error('No se pudo cargar el progreso guardado:', e);
-                    sessionStorage.removeItem(SESSION_STORAGE_KEY);
-                }
+                            showNotification(msg, 'warning', 6000);
+                            resolve(null);
+                        },
+                        options
+                    );
+                });
             }
 
             // --- MANEJADORES DE EVENTOS Y EJECUCIÓN INICIAL ---
-
-            // Añadir validación en tiempo real a cada campo
+            
             formQueja.querySelectorAll('input, select, textarea').forEach(field => {
                 field.addEventListener('input', () => validateField(field));
-                // También validar al perder el foco para una UX más clara
                 field.addEventListener('blur', () => validateField(field));
             });
-
-            // Cambiar la sección de queja dinámicamente
+            
             tipoQuejaSelect.addEventListener('change', mostrarSeccionQueja);
 
-            // Manejar el envío del formulario
+            /**
+             * MODIFICACIÓN: La lógica de envío ahora integra la llamada a la geolocalización.
+             */
             formQueja.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                if (isSubmitting) {
-                    showNotification('La queja ya se está enviando. Por favor, espera.', 'info');
-                    return;
-                }
+                if (isSubmitting) return;
                 
                 if (!validateCompleteForm()) {
                     showNotification('Por favor, corrige los errores en el formulario.', 'error');
-                    // Enfocar el primer campo con error
                     const firstErrorField = formQueja.querySelector('.error input, .error select, .error textarea');
                     if(firstErrorField) firstErrorField.focus();
                     return;
@@ -874,53 +752,68 @@
                 loadingOverlay.style.display = 'flex';
                 submitBtn.disabled = true;
 
-                const formData = new FormData(e.target);
+                // 1. Inicia el proceso mostrando un mensaje al usuario
+                loadingText.textContent = 'Obteniendo ubicación...';
+                
+                // 2. Llamamos a la función y "esperamos" el resultado
+                const ubicacion = await obtenerUbicacion(); 
+                
+                // 3. Si se obtuvo, se actualizan los campos ocultos del formulario
+                if (ubicacion) {
+                    latitudInput.value = ubicacion.lat;
+                    longitudInput.value = ubicacion.lon;
+                    showNotification('Ubicación obtenida con éxito.', 'success', 2000);
+                }
+                
+                // 4. Se continúa con el envío, con o sin ubicación
+                loadingText.textContent = 'Enviando queja...';
+
+                const formData = new FormData(formQueja);
                 const data = {};
                 for (let [key, value] of formData.entries()) {
                     data[key] = sanitizeInput(value);
                 }
 
                 try {
-                    // Simulación de envío al backend
-                    console.log("Enviando al backend:", JSON.stringify(data, null, 2));
                     const res = await fetch('/enviar-queja', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify(data)
                     });
-
                     const responseData = await res.json();
 
                     if (res.ok && responseData.success) {
                         showNotification('¡Queja enviada con éxito! Gracias.', 'success');
                         formQueja.reset();
-                        // FIX: La limpieza del sessionStorage ahora ocurre solo tras un envío exitoso.
                         sessionStorage.removeItem(SESSION_STORAGE_KEY);
                         mostrarSeccionQueja();
                         formQueja.querySelectorAll('.form-group').forEach(group => {
                             group.classList.remove('error', 'success', 'is-required');
                         });
                     } else {
-                        showNotification(responseData.error || 'Error desconocido al enviar la queja.', 'error');
+                        showNotification(responseData.error || 'Error al enviar la queja.', 'error');
                     }
                 } catch (error) {
-                    console.error('Error de red al enviar la queja:', error);
                     showNotification('Hubo un problema de conexión. Inténtalo de nuevo.', 'error');
                 } finally {
                     isSubmitting = false;
                     loadingOverlay.style.display = 'none';
                     submitBtn.disabled = false;
+                    latitudInput.value = '';
+                    longitudInput.value = '';
                 }
             });
 
             // --- INICIALIZACIÓN ---
-            loadProgress();
-            obtenerUbicacion();
-            // Guardar progreso cada 30 segundos
-            setInterval(saveProgress, 30000);
+            
+            // MODIFICACIÓN: Ya no se obtiene la ubicación al cargar la página
+            // loadProgress();
+            
+            // setInterval(saveProgress, 30000);
+
+            // ======================================================
+            // FIN DE LA MODIFICACIÓN
+            // ======================================================
         });
     </script>
 </body>
