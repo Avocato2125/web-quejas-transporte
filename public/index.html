@@ -29,100 +29,24 @@
         body { font-family: 'Lato', sans-serif; background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-blue) 100%); color: var(--color-text-light); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; line-height: 1.6; }
         .form-container { background: var(--color-white); border-radius: 20px; box-shadow: 0 25px 50px var(--color-shadow); padding: 50px; max-width: 800px; width: 100%; box-sizing: border-box; position: relative; overflow: hidden; animation: fadeInScale 0.8s ease-out; }
         
-        /* --- ESTILOS PARA EL MODAL DE FOLIO (NUEVO) --- */
+        /* --- ESTILOS PARA EL MODAL DE FOLIO --- */
         .folio-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(10, 22, 40, 0.85);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(10, 22, 40, 0.85); display: flex;
+            justify-content: center; align-items: center; z-index: 2000;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
         }
-        .folio-modal-overlay.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-        .folio-modal-content {
-            background: var(--color-white);
-            color: var(--color-text-dark);
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            position: relative;
-            transform: scale(0.95);
-            transition: transform 0.3s ease;
-        }
-        .folio-modal-overlay.visible .folio-modal-content {
-            transform: scale(1);
-        }
-        .folio-modal-content h3 {
-            color: var(--color-success);
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.8em;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-        .folio-modal-content p {
-            margin-bottom: 25px;
-            font-size: 1.1em;
-            line-height: 1.6;
-        }
-        .folio-display {
-            background-color: var(--color-light-blue);
-            border: 2px dashed var(--color-accent-blue);
-            border-radius: 10px;
-            padding: 15px;
-            margin: 20px auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .folio-number {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.5em;
-            font-weight: 700;
-            color: var(--color-primary-blue);
-            letter-spacing: 2px;
-        }
-        .folio-copy-btn {
-            background: var(--color-accent-blue);
-            color: var(--color-white);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-        .folio-copy-btn:hover {
-            background-color: var(--color-hover-blue);
-        }
-        .folio-close-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: transparent;
-            border: none;
-            font-size: 1.8em;
-            cursor: pointer;
-            color: var(--color-border);
-            transition: color 0.2s ease;
-        }
-        .folio-close-btn:hover {
-            color: var(--color-text-dark);
-        }
-
-        /* --- FIN DE ESTILOS PARA EL MODAL --- */
+        .folio-modal-overlay.visible { opacity: 1; visibility: visible; }
+        .folio-modal-content { background: var(--color-white); color: var(--color-text-dark); padding: 40px; border-radius: 20px; text-align: center; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; transform: scale(0.95); transition: transform 0.3s ease; }
+        .folio-modal-overlay.visible .folio-modal-content { transform: scale(1); }
+        .folio-modal-content h3 { color: var(--color-success); font-family: 'Montserrat', sans-serif; font-size: 1.8em; margin-top: 0; margin-bottom: 15px; }
+        .folio-modal-content p { margin-bottom: 25px; font-size: 1.1em; line-height: 1.6; }
+        .folio-display { background-color: var(--color-light-blue); border: 2px dashed var(--color-accent-blue); border-radius: 10px; padding: 15px; margin: 20px auto; display: flex; justify-content: space-between; align-items: center; }
+        .folio-number { font-family: 'Montserrat', sans-serif; font-size: 1.5em; font-weight: 700; color: var(--color-primary-blue); letter-spacing: 2px; }
+        .folio-copy-btn { background: var(--color-accent-blue); color: var(--color-white); border: none; border-radius: 8px; padding: 10px 15px; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease; }
+        .folio-copy-btn:hover { background-color: var(--color-hover-blue); }
+        .folio-close-btn { position: absolute; top: 15px; right: 15px; background: transparent; border: none; font-size: 1.8em; cursor: pointer; color: var(--color-border); transition: color 0.2s ease; }
+        .folio-close-btn:hover { color: var(--color-text-dark); }
 
         .form-container::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(90deg, var(--color-accent-blue), var(--color-primary-blue), var(--color-accent-blue)); z-index: 1; }
         @keyframes fadeInScale { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -168,7 +92,12 @@
 </head>
 <body>
     <div class="form-container">
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <span id="loading-text">Enviando queja...</span>
+        </div>
         <h2>Quejas Transporte de Personal</h2>
+
         <form id="form-queja">
             <div class="form-group">
                 <label for="numero_empleado">Número de Empleado:</label>
@@ -293,6 +222,7 @@
             </div>
         </div>
     </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const formQueja = document.getElementById('form-queja');
@@ -305,7 +235,6 @@
             const latitudInput = document.getElementById('latitud');
             const longitudInput = document.getElementById('longitud');
             
-            // --- NUEVOS SELECTORES PARA EL MODAL ---
             const folioModal = document.getElementById('folioModal');
             const folioNumberSpan = document.getElementById('folioNumber');
             const folioCopyBtn = document.getElementById('folioCopyBtn');
@@ -498,9 +427,7 @@
                     const responseData = await res.json();
 
                     if (res.ok && responseData.success) {
-                        // --- MODIFICACIÓN: Mostrar el modal en lugar de la notificación ---
                         mostrarModalFolio(responseData.folio);
-                        
                         formQueja.reset();
                         sessionStorage.removeItem(SESSION_STORAGE_KEY);
                         mostrarSeccionQueja();
@@ -521,7 +448,6 @@
                 }
             });
             
-            // --- NUEVAS FUNCIONES Y EVENT LISTENERS PARA EL MODAL ---
             function mostrarModalFolio(folio) {
                 folioNumberSpan.textContent = folio;
                 folioModal.classList.add('visible');
@@ -549,7 +475,6 @@
                 }
             });
 
-            // --- INICIALIZACIÓN ---
             loadProgress();
             setInterval(saveProgress, 30000);
         });
