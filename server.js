@@ -14,7 +14,7 @@ const crypto = require('crypto');
 const app = express();
 
 // =================================================================
-// 🔥 INICIO DE LA CORRECCIÓN 🔥
+// 🔥 CORRECCIÓN: Habilitar "trust proxy" 🔥
 // Le decimos a Express que confíe en el proxy que tiene delante (el de Railway).
 // Esto es necesario para que express-rate-limit funcione correctamente en producción.
 app.set('trust proxy', 1);
@@ -82,7 +82,7 @@ function generarFolio() {
     return `QJ-${anio}${mes}${dia}-${aleatorio}`;
 }
 
-// --- Configuración de Quejas (Sin Cambios) ---
+// --- Configuración de Quejas ---
 const QUEJAS_CONFIG = {
     'Retraso': { tableName: 'quejas_retraso', fields: ['detalles_retraso', 'direccion_subida', 'hora_programada', 'hora_llegada', 'metodo_transporte_alterno', 'monto_gastado', 'hora_llegada_planta'] },
     'Mal trato': { tableName: 'quejas_mal_trato', fields: ['nombre_conductor_maltrato', 'detalles_maltrato'] },
@@ -91,8 +91,12 @@ const QUEJAS_CONFIG = {
     'Otro': { tableName: 'quejas_otro', fields: ['detalles_otro'] }
 };
 
-// --- Rutas del Servidor (Sin Cambios) ---
-app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
+// --- Rutas del Servidor ---
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.post('/enviar-queja', async (req, res) => {
     try {
         const { tipo, numero_empleado, empresa, ruta, colonia, turno, latitud, longitud, numero_unidad, ...detalles } = req.body;
@@ -119,14 +123,66 @@ app.post('/enviar-queja', async (req, res) => {
         res.status(500).json({ success: false, error: 'Error interno del servidor al procesar la solicitud.' });
     }
 });
-app.get('/api/quejas', async (req, res) => { /* ...código sin cambios... */ });
-app.put('/api/queja/resolver', async (req, res) => { /* ...código sin cambios... */ });
-app.get('/health', (req, res) => { res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() }); });
-app.use((req, res, next) => { res.status(404).json({ success: false, error: `Ruta no encontrada: ${req.originalUrl}` }); });
-app.use((error, req, res, next) => { console.error('❌ ERROR NO MANEJADO:', error); res.status(500).json({ success: false, error: 'Ha ocurrido un error inesperado en el servidor.' }); });
 
-// --- Arranque del Servidor (Sin Cambios) ---
-const server = app.listen(PORT, () => { console.log(`🚀 Servidor de Quejas v4.8 corriendo en http://localhost:${PORT} en modo ${NODE_ENV}`); });
-const gracefulShutdown = () => { server.close(() => { pool.end(() => { process.exit(0); }); }); };
+app.get('/api/quejas', async (req, res) => {
+    try {
+        const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
+        const queries = tableNames.map(tableName => pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName}`));
+        const results = await Promise.all(queries);
+        const allQuejas = results.flatMap(result => result.rows);
+        allQuejas.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+        res.status(200).json(allQuejas);
+    } catch (error) {
+        console.error('❌ Error al obtener las quejas:', error);
+        res.status(500).json({ success: false, error: 'Error al consultar la base de datos.' });
+    }
+});
+
+app.put('/api/queja/resolver', async (req, res) => {
+    try {
+        const { id, tabla_origen, resolucion, estado = 'Revisada' } = req.body;
+        if (!id || !tabla_origen || !resolucion) { return res.status(400).json({ success: false, error: 'Faltan datos requeridos (id, tabla_origen, resolucion).' }); }
+        const tablasPermitidas = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
+        if (!tablasPermitidas.includes(tabla_origen)) { return res.status(400).json({ success: false, error: 'Nombre de tabla no válido.' }); }
+        const query = `UPDATE ${tabla_origen} SET estado_queja = $1, resolucion = $2, fecha_resolucion = NOW() WHERE id = $3 RETURNING *;`;
+        const result = await pool.query(query, [estado, resolucion, id]);
+        if (result.rowCount === 0) { return res.status(404).json({ success: false, error: 'Queja no encontrada.' }); }
+        console.log(`✅ Queja ${id} de la tabla ${tabla_origen} actualizada.`);
+        res.status(200).json({ success: true, queja: result.rows[0] });
+    } catch (error) {
+        console.error('❌ Error al resolver la queja:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor.' });
+    }
+});
+
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.use((req, res, next) => {
+    res.status(404).json({ success: false, error: `Ruta no encontrada: ${req.originalUrl}` });
+});
+
+app.use((error, req, res, next) => {
+    console.error('❌ ERROR NO MANEJADO:', error);
+    res.status(500).json({ success: false, error: 'Ha ocurrido un error inesperado en el servidor.' });
+});
+
+// --- Arranque del Servidor ---
+const server = app.listen(PORT, () => {
+    console.log(`🚀 Servidor de Quejas v4.8 corriendo en http://localhost:${PORT} en modo ${NODE_ENV}`);
+});
+
+const gracefulShutdown = () => {
+    console.log('Iniciando cierre elegante del servidor...');
+    server.close(() => {
+        console.log('Servidor HTTP cerrado.');
+        pool.end(() => {
+            console.log('Pool de la base de datos cerrado.');
+            process.exit(0);
+        });
+    });
+};
+
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
