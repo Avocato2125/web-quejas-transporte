@@ -105,8 +105,9 @@ const loginLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Demasiados intentos de login. Intente en 15 minutos.' },
-    onLimitReached: (req, res, options) => {
+    handler: (req, res) => {
         logger.warn(`Rate limit alcanzado para login desde IP: ${req.ip}`);
+        res.status(429).json({ success: false, error: 'Demasiados intentos de login. Intente en 15 minutos.' });
     }
 });
 
