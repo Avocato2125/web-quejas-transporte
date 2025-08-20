@@ -42,35 +42,25 @@
     <script>
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('error-message');
-
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessage.textContent = '';
-            
             const username = e.target.username.value;
             const password = e.target.password.value;
-
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-
                 const data = await response.json();
-
                 if (!response.ok || !data.success) {
                     throw new Error(data.error || 'Error al iniciar sesión');
                 }
-
-                // Guarda los tokens en el almacenamiento local del navegador
                 localStorage.setItem('accessToken', data.accessToken);
                 localStorage.setItem('refreshToken', data.refreshToken);
                 localStorage.setItem('user', JSON.stringify(data.user));
-
-                // Redirige al dashboard
                 window.location.href = '/dashboard.html';
-
             } catch (error) {
                 errorMessage.textContent = error.message;
             }

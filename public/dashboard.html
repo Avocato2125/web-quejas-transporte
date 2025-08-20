@@ -82,10 +82,11 @@
 
     <header class="header">
         <h1>Panel de Quejas Pendientes</h1>
-        <div class="search-container">
-            <input type="search" id="searchFolio" placeholder="🔎 Buscar por Folio...">
+        <div>
+            <span id="welcomeUser" style="margin-right: 20px; font-weight: 600;"></span>
+            <button id="logoutBtn" style="background:var(--color-error); color:white; border:none; padding: 8px 15px; border-radius: 8px; cursor:pointer; font-weight: 600;">Cerrar Sesión</button>
         </div>
-    </header>
+        </header>
 
     <nav class="tabs-nav" id="tabsNav">
         <button class="tab-btn active" data-tipo="Todos">Todas</button>
@@ -120,6 +121,32 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- INICIO DE LA MODIFICACIÓN DE SEGURIDAD ---
+        
+        // 1. Obtenemos el token y los datos del usuario del almacenamiento local
+        const accessToken = localStorage.getItem('accessToken');
+        const user = JSON.parse(localStorage.getItem('user'));
+
+        // 2. Si no hay token, redirigimos inmediatamente a la página de login
+        if (!accessToken) {
+            window.location.href = '/login.html';
+            return; // Detiene la ejecución del resto del script
+        }
+        
+        // 3. Mostramos un mensaje de bienvenida y configuramos el botón de logout
+        const welcomeUserSpan = document.getElementById('welcomeUser');
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (user && user.username) {
+            welcomeUserSpan.textContent = `Bienvenido, ${user.username}`;
+        }
+        logoutBtn.addEventListener('click', () => {
+            localStorage.clear(); // Limpia todos los tokens y datos de usuario
+            window.location.href = '/login.html';
+        });
+
+        // --- FIN DE LA MODIFICACIÓN DE SEGURIDAD ---
+
+        // El resto de los selectores del DOM
         const tabsNav = document.getElementById('tabsNav');
         const quejasLista = document.getElementById('quejasLista');
         const detailsModal = document.getElementById('detailsModal');
@@ -134,11 +161,29 @@
 
         async function fetchQuejas() {
             try {
-                const response = await fetch('/api/quejas');
-                if (!response.ok) throw new Error('Error al cargar datos');
+                // 4. Añadimos la cabecera de Autorización a la petición fetch
+                const response = await fetch('/api/quejas', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                // Si el token es inválido o expiró, el servidor devolverá 401 o 403
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.clear();
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                if (!response.ok) throw new Error('Error al cargar datos del servidor');
+                
                 const quejasData = await response.json();
-                todasLasQuejas = quejasData.data; // La respuesta ahora viene paginada
-                renderQuejas();
+                if (quejasData.success) {
+                    todasLasQuejas = quejasData.data; // La respuesta ahora viene paginada
+                    renderQuejas();
+                } else {
+                    throw new Error(quejasData.error || 'Error desconocido');
+                }
             } catch (error) {
                 quejasLista.innerHTML = `<p class="empty-state">Error al cargar las quejas.</p>`;
                 console.error(error);
@@ -150,22 +195,16 @@
             const activeTab = document.querySelector('.tab-btn.active');
             const tipoFiltro = activeTab.dataset.tipo;
             const searchTerm = searchInput.value.trim().toUpperCase();
-
             const quejasPendientes = todasLasQuejas.filter(q => q.estado_queja === 'Pendiente');
-            const quejasFiltradasPorTipo = tipoFiltro === 'Todos'
-                ? quejasPendientes
-                : quejasPendientes.filter(q => q.tipo === tipoFiltro);
-            
+            const quejasFiltradasPorTipo = tipoFiltro === 'Todos' ? quejasPendientes : quejasPendientes.filter(q => q.tipo === tipoFiltro);
             const quejasFinales = quejasFiltradasPorTipo.filter(queja => {
                 if (!searchTerm) return true;
                 return queja.folio && queja.folio.toUpperCase().includes(searchTerm);
             });
-
             if (quejasFinales.length === 0) {
                 quejasLista.innerHTML = `<p class="empty-state">No se encontraron quejas que coincidan con los filtros.</p>`;
                 return;
             }
-
             quejasFinales.forEach(queja => {
                 const tarjeta = crearTarjetaQueja(queja);
                 quejasLista.appendChild(tarjeta);
@@ -250,7 +289,10 @@
             try {
                 const response = await fetch('/api/queja/resolver', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}` // Añadimos el token aquí también
+                    },
                     body: JSON.stringify({ 
                         id: quejaActual.id, 
                         tabla_origen: quejaActual.tabla_origen, 
