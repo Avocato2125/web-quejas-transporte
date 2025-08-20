@@ -136,7 +136,8 @@
             try {
                 const response = await fetch('/api/quejas');
                 if (!response.ok) throw new Error('Error al cargar datos');
-                todasLasQuejas = await response.json();
+                const quejasData = await response.json();
+                todasLasQuejas = quejasData.data; // La respuesta ahora viene paginada
                 renderQuejas();
             } catch (error) {
                 quejasLista.innerHTML = `<p class="empty-state">Error al cargar las quejas.</p>`;
@@ -247,20 +248,16 @@
             const resolucion = document.getElementById('resolucionText').value;
             if (!resolucion.trim() || !quejaActual) return;
             try {
-                // --- INICIO DE LA MODIFICACIÓN ---
-                // Ahora enviamos también el folio de la queja al servidor.
                 const response = await fetch('/api/queja/resolver', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         id: quejaActual.id, 
                         tabla_origen: quejaActual.tabla_origen, 
-                        folio: quejaActual.folio, // <-- CAMBIO: Se añade el folio
+                        folio: quejaActual.folio,
                         resolucion: resolucion 
                     })
                 });
-                // --- FIN DE LA MODIFICACIÓN ---
-
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error);
                 detailsModal.classList.remove('visible');
