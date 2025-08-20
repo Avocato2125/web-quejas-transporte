@@ -22,12 +22,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
         }
         .header h1 { margin: 0; font-family: 'Montserrat', sans-serif; font-size: 2em; }
-        
-        .header-controls { display: flex; align-items: center; gap: 20px; }
         
         .search-container {
             width: 300px;
@@ -51,7 +47,7 @@
             color: #aab8c2;
         }
 
-        .tabs-nav { display: flex; background-color: var(--color-white); border-bottom: 1px solid var(--color-border); padding: 0 40px; flex-wrap: wrap; }
+        .tabs-nav { display: flex; background-color: var(--color-white); border-bottom: 1px solid var(--color-border); padding: 0 40px; }
         .tab-btn { background: none; border: none; padding: 15px 25px; font-size: 1.1em; font-weight: 600; color: var(--color-text-medium); cursor: pointer; position: relative; transition: color 0.2s ease; }
         .tab-btn::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background-color: var(--color-accent-blue); transform: scaleX(0); transition: transform 0.3s ease; }
         .tab-btn.active { color: var(--color-primary-blue); }
@@ -85,17 +81,12 @@
 <body>
 
     <header class="header">
-        <h1>Panel de Quejas</h1>
-        <div class="header-controls">
-            <div class="search-container">
-                <input type="search" id="searchFolio" placeholder="🔎 Buscar por Folio...">
-            </div>
-            <div>
-                <span id="welcomeUser" style="margin-right: 20px; font-weight: 600;"></span>
-                <button id="logoutBtn" style="background:var(--color-error); color:white; border:none; padding: 8px 15px; border-radius: 8px; cursor:pointer; font-weight: 600;">Cerrar Sesión</button>
-            </div>
+        <h1>Panel de Quejas Pendientes</h1>
+        <div>
+            <span id="welcomeUser" style="margin-right: 20px; font-weight: 600;"></span>
+            <button id="logoutBtn" style="background:var(--color-error); color:white; border:none; padding: 8px 15px; border-radius: 8px; cursor:pointer; font-weight: 600;">Cerrar Sesión</button>
         </div>
-    </header>
+        </header>
 
     <nav class="tabs-nav" id="tabsNav">
         <button class="tab-btn active" data-tipo="Todos">Todas</button>
@@ -130,28 +121,32 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- INICIO DE LA LÓGICA DE AUTENTICACIÓN ---
+        // --- INICIO DE LA MODIFICACIÓN DE SEGURIDAD ---
         
+        // 1. Obtenemos el token y los datos del usuario del almacenamiento local
         const accessToken = localStorage.getItem('accessToken');
         const user = JSON.parse(localStorage.getItem('user'));
 
+        // 2. Si no hay token, redirigimos inmediatamente a la página de login
         if (!accessToken) {
             window.location.href = '/login.html';
-            return;
+            return; // Detiene la ejecución del resto del script
         }
         
+        // 3. Mostramos un mensaje de bienvenida y configuramos el botón de logout
         const welcomeUserSpan = document.getElementById('welcomeUser');
         const logoutBtn = document.getElementById('logoutBtn');
         if (user && user.username) {
             welcomeUserSpan.textContent = `Bienvenido, ${user.username}`;
         }
         logoutBtn.addEventListener('click', () => {
-            localStorage.clear();
+            localStorage.clear(); // Limpia todos los tokens y datos de usuario
             window.location.href = '/login.html';
         });
 
-        // --- FIN DE LA LÓGICA DE AUTENTICACIÓN ---
+        // --- FIN DE LA MODIFICACIÓN DE SEGURIDAD ---
 
+        // El resto de los selectores del DOM
         const tabsNav = document.getElementById('tabsNav');
         const quejasLista = document.getElementById('quejasLista');
         const detailsModal = document.getElementById('detailsModal');
@@ -166,12 +161,14 @@
 
         async function fetchQuejas() {
             try {
+                // 4. Añadimos la cabecera de Autorización a la petición fetch
                 const response = await fetch('/api/quejas', {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`
                     }
                 });
 
+                // Si el token es inválido o expiró, el servidor devolverá 401 o 403
                 if (response.status === 401 || response.status === 403) {
                     localStorage.clear();
                     window.location.href = '/login.html';
@@ -182,7 +179,7 @@
                 
                 const quejasData = await response.json();
                 if (quejasData.success) {
-                    todasLasQuejas = quejasData.data;
+                    todasLasQuejas = quejasData.data; // La respuesta ahora viene paginada
                     renderQuejas();
                 } else {
                     throw new Error(quejasData.error || 'Error desconocido');
