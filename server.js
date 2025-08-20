@@ -1,4 +1,4 @@
-// server.js (Versión 4.8 - Corregido el 'trust proxy' para Railway)
+// server.js (Versión 4.9 - Con tabla de resoluciones y transacciones)
 
 require('dotenv').config();
 
@@ -12,14 +12,7 @@ const crypto = require('crypto');
 
 // --- Inicialización de la App ---
 const app = express();
-
-// =================================================================
-// 🔥 CORRECCIÓN: Habilitar "trust proxy" 🔥
-// Le decimos a Express que confíe en el proxy que tiene delante (el de Railway).
-// Esto es necesario para que express-rate-limit funcione correctamente en producción.
 app.set('trust proxy', 1);
-// =================================================================
-
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
@@ -47,7 +40,7 @@ app.use(cors({
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100, // Aumentado a 100 para no ser tan restrictivo
+    max: 100,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Demasiadas solicitudes enviadas. Por favor, intente de nuevo en 15 minutos.' }
@@ -91,7 +84,7 @@ const QUEJAS_CONFIG = {
     'Otro': { tableName: 'quejas_otro', fields: ['detalles_otro'] }
 };
 
-// --- Rutas del Servidor ---
+// --- RUTAS DEL SERVIDOR ---
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -138,23 +131,53 @@ app.get('/api/quejas', async (req, res) => {
     }
 });
 
+// =================================================================
+// 🔥 RUTA PUT ACTUALIZADA PARA USAR TRANSACCIONES 🔥
+// =================================================================
 app.put('/api/queja/resolver', async (req, res) => {
+    const client = await pool.connect(); // Obtiene un cliente del pool para la transacción
+
     try {
-        const { id, tabla_origen, resolucion, estado = 'Revisada' } = req.body;
-        if (!id || !tabla_origen || !resolucion) { return res.status(400).json({ success: false, error: 'Faltan datos requeridos (id, tabla_origen, resolucion).' }); }
+        const { id, tabla_origen, folio, resolucion, estado = 'Revisada' } = req.body;
+
+        if (!id || !tabla_origen || !folio || !resolucion) {
+            return res.status(400).json({ success: false, error: 'Faltan datos requeridos (id, tabla_origen, folio, resolucion).' });
+        }
+        
         const tablasPermitidas = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
-        if (!tablasPermitidas.includes(tabla_origen)) { return res.status(400).json({ success: false, error: 'Nombre de tabla no válido.' }); }
-        const query = `UPDATE ${tabla_origen} SET estado_queja = $1, resolucion = $2, fecha_resolucion = NOW() WHERE id = $3 RETURNING *;`;
-        const result = await pool.query(query, [estado, resolucion, id]);
-        if (result.rowCount === 0) { return res.status(404).json({ success: false, error: 'Queja no encontrada.' }); }
-        console.log(`✅ Queja ${id} de la tabla ${tabla_origen} actualizada.`);
-        res.status(200).json({ success: true, queja: result.rows[0] });
+        if (!tablasPermitidas.includes(tabla_origen)) {
+            return res.status(400).json({ success: false, error: 'Nombre de tabla no válido.' });
+        }
+
+        // 1. Inicia la transacción
+        await client.query('BEGIN');
+
+        // 2. Actualiza el estado en la tabla original de la queja
+        const updateQuery = `UPDATE ${tabla_origen} SET estado_queja = $1 WHERE id = $2;`;
+        await client.query(updateQuery, [estado, id]);
+
+        // 3. Inserta el registro en la nueva tabla de resoluciones
+        const insertQuery = `INSERT INTO resoluciones (folio_queja, texto_resolucion, responsable) VALUES ($1, $2, $3);`;
+        await client.query(insertQuery, [folio, resolucion, 'Administrador']);
+
+        // 4. Si ambas operaciones tuvieron éxito, confirma la transacción
+        await client.query('COMMIT');
+
+        console.log(`✅ Queja con folio ${folio} actualizada y resolución registrada.`);
+        res.status(200).json({ success: true, message: 'Queja resuelta y registrada.' });
+
     } catch (error) {
-        console.error('❌ Error al resolver la queja:', error);
-        res.status(500).json({ success: false, error: 'Error interno del servidor.' });
+        // 5. Si cualquier operación falla, revierte todos los cambios
+        await client.query('ROLLBACK');
+        console.error('❌ Error en la transacción, cambios revertidos:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor al procesar la resolución.' });
+    } finally {
+        // 6. Libera al cliente de vuelta al pool
+        client.release();
     }
 });
 
+// --- Rutas de Utilidad y Manejo de Errores ---
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -170,7 +193,7 @@ app.use((error, req, res, next) => {
 
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
-    console.log(`🚀 Servidor de Quejas v4.8 corriendo en http://localhost:${PORT} en modo ${NODE_ENV}`);
+    console.log(`🚀 Servidor de Quejas v4.9 corriendo en http://localhost:${PORT} en modo ${NODE_ENV}`);
 });
 
 const gracefulShutdown = () => {

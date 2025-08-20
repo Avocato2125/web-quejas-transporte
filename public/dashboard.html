@@ -25,7 +25,6 @@
         }
         .header h1 { margin: 0; font-family: 'Montserrat', sans-serif; font-size: 2em; }
         
-        /* --- ESTILOS PARA LA BARRA DE BÚSQUEDA --- */
         .search-container {
             width: 300px;
         }
@@ -128,7 +127,7 @@
         const modalBody = document.getElementById('modalBody');
         const modalCloseBtn = document.getElementById('modalCloseBtn');
         const resolveForm = document.getElementById('resolveForm');
-        const searchInput = document.getElementById('searchFolio'); // Selector para la barra de búsqueda
+        const searchInput = document.getElementById('searchFolio');
         
         let todasLasQuejas = [];
         let quejaActual = null;
@@ -145,26 +144,19 @@
             }
         }
 
-        /**
-         * Renderiza las quejas en pantalla, aplicando filtros de pestaña y búsqueda.
-         */
         function renderQuejas() {
             quejasLista.innerHTML = '';
             const activeTab = document.querySelector('.tab-btn.active');
             const tipoFiltro = activeTab.dataset.tipo;
             const searchTerm = searchInput.value.trim().toUpperCase();
 
-            // 1. Filtrar por estado 'Pendiente'
             const quejasPendientes = todasLasQuejas.filter(q => q.estado_queja === 'Pendiente');
-            
-            // 2. Filtrar por la pestaña activa
             const quejasFiltradasPorTipo = tipoFiltro === 'Todos'
                 ? quejasPendientes
                 : quejasPendientes.filter(q => q.tipo === tipoFiltro);
             
-            // 3. Filtrar por el término de búsqueda
             const quejasFinales = quejasFiltradasPorTipo.filter(queja => {
-                if (!searchTerm) return true; // Si no hay búsqueda, muestra todo
+                if (!searchTerm) return true;
                 return queja.folio && queja.folio.toUpperCase().includes(searchTerm);
             });
 
@@ -184,10 +176,8 @@
             tarjeta.className = 'queja-tarjeta';
             tarjeta.dataset.id = queja.id;
             tarjeta.dataset.tabla = queja.tabla_origen;
-
             const fecha = new Date(queja.fecha_creacion);
             const fechaFormateada = fecha.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
-
             tarjeta.innerHTML = `
                 <div class="tarjeta-header">
                     <span class="tarjeta-folio">${queja.folio}</span>
@@ -205,7 +195,6 @@
             quejaActual = queja;
             modalFolio.textContent = `Detalles Folio: ${queja.folio}`;
             modalBody.innerHTML = '';
-
             const etiquetas = {
                 numero_empleado: 'No. Empleado', empresa: 'Empresa', ruta: 'Ruta', numero_unidad: 'No. Unidad',
                 colonia: 'Colonia', turno: 'Turno', tipo: 'Tipo de Queja', folio: 'Folio',
@@ -217,7 +206,6 @@
                 ubicacion_inseguridad: 'Lugar del Incidente', numero_unidad_malestado: 'No. Unidad (Mal Estado)',
                 tipo_falla: 'Tipo de Falla', detalles_malestado: 'Detalles (Mal Estado)', detalles_otro: 'Detalles (Otro)'
             };
-
             for(const key in queja) {
                 if(etiquetas[key] && queja[key] !== null && queja[key] !== '') {
                     let valor = queja[key];
@@ -234,8 +222,6 @@
             detailsModal.classList.add('visible');
         }
 
-        // --- Event Listeners ---
-
         tabsNav.addEventListener('click', (e) => {
             if (e.target.classList.contains('tab-btn')) {
                 document.querySelector('.tab-btn.active').classList.remove('active');
@@ -244,7 +230,6 @@
             }
         });
 
-        // Listener para la barra de búsqueda
         searchInput.addEventListener('input', renderQuejas);
 
         quejasLista.addEventListener('click', (e) => {
@@ -262,11 +247,20 @@
             const resolucion = document.getElementById('resolucionText').value;
             if (!resolucion.trim() || !quejaActual) return;
             try {
+                // --- INICIO DE LA MODIFICACIÓN ---
+                // Ahora enviamos también el folio de la queja al servidor.
                 const response = await fetch('/api/queja/resolver', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: quejaActual.id, tabla_origen: quejaActual.tabla_origen, resolucion: resolucion })
+                    body: JSON.stringify({ 
+                        id: quejaActual.id, 
+                        tabla_origen: quejaActual.tabla_origen, 
+                        folio: quejaActual.folio, // <-- CAMBIO: Se añade el folio
+                        resolucion: resolucion 
+                    })
                 });
+                // --- FIN DE LA MODIFICACIÓN ---
+
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error);
                 detailsModal.classList.remove('visible');
@@ -280,7 +274,6 @@
         modalCloseBtn.addEventListener('click', () => detailsModal.classList.remove('visible'));
         detailsModal.addEventListener('click', (e) => { if(e.target === detailsModal) detailsModal.classList.remove('visible') });
 
-        // Carga inicial de datos
         fetchQuejas();
     });
     </script>
