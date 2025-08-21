@@ -73,9 +73,19 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"]
+            styleSrc: [
+                "'self'", 
+                "'unsafe-inline'", 
+                "https://fonts.googleapis.com"
+            ],
+            fontSrc: [
+                "'self'", 
+                "https://fonts.gstatic.com",
+                "data:"
+            ],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'"]
         }
     }
 }));
@@ -266,6 +276,11 @@ function generarFolio() {
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/1', (req, res) => {
+    // Tu lógica aquí
+    res.json({ message: 'Ruta /1' });
 });
 
 // LOGIN SEGURO CON HASH DE CONTRASEÑAS
