@@ -1,4 +1,4 @@
-// server.js (Versión 6.0 - Implementación Segura Real)
+// server.js (Versión 6.1 - Con correcciones de CORS y CSP)
 
 require('dotenv').config();
 
@@ -12,8 +12,9 @@ const crypto = require('crypto');
 const Joi = require('joi');
 const winston = require('winston');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt'); // Para hash de contraseñas
-const helmet = require('helmet'); // Para headers de seguridad
+const bcrypt = require('bcrypt');
+const helmet = require('helmet');
+const compression = require('compression'); // Agregar para mejorar rendimiento
 
 // --- INICIALIZACIÓN Y CONFIGURACIÓN ---
 const app = express();
@@ -43,7 +44,6 @@ const logger = winston.createLogger({
     ),
     defaultMeta: { service: 'quejas-system' },
     transports: [
-        // Rotación de logs para evitar que crezcan infinitamente
         new winston.transports.File({ 
             filename: 'logs/error.log', 
             level: 'error',
@@ -87,24 +87,47 @@ app.use(helmet({
             imgSrc: ["'self'", "data:", "https:"],
             connectSrc: ["'self'"]
         }
-    }
+    },
+    crossOriginEmbedderPolicy: false
 }));
 
+// Middleware de compresión para mejorar rendimiento
+app.use(compression());
+
+// Configuración de CORS mejorada
 const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'https://plataforma-quejas-tecsa-up.railway.app',
     process.env.CORS_ORIGIN,
-    `https://${process.env.RAILWAY_STATIC_URL}`
+    process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL}` : null
 ].filter(Boolean);
 
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin) || NODE_ENV === 'development') {
+        // Permitir peticiones sin origin (ej: aplicaciones móviles, Postman)
+        if (!origin) {
+            return callback(null, true);
+        }
+        
+        // En desarrollo, permitir cualquier origen
+        if (NODE_ENV === 'development') {
+            return callback(null, true);
+        }
+        
+        // En producción, verificar contra la lista de orígenes permitidos
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             logger.warn(`Origen bloqueado por CORS: ${origin}`);
             callback(new Error('Origen no permitido por la política de CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+    exposedHeaders: ['Content-Length', 'Content-Range'],
+    maxAge: 86400 // Cache de preflight por 24 horas
 }));
 
 // RATE LIMITING ESPECÍFICO POR ENDPOINT
@@ -137,8 +160,21 @@ const generalApiLimiter = rateLimit({
 app.use('/api/', generalApiLimiter);
 
 // --- Middlewares Generales ---
-app.use(express.json({ limit: '1mb' })); // Reducido de 10mb
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware de logging para debugging (solo en desarrollo)
+if (NODE_ENV === 'development') {
+    app.use((req, res, next) => {
+        const start = Date.now();
+        res.on('finish', () => {
+            const duration = Date.now() - start;
+            logger.debug(`${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms`);
+        });
+        next();
+    });
+}
 
 // --- Configuración de la Base de Datos ---
 const pool = new Pool({
@@ -149,6 +185,7 @@ const pool = new Pool({
     connectionTimeoutMillis: 2000
 });
 
+// Verificar conexión a la base de datos
 pool.query('SELECT NOW()')
     .then(() => logger.info('✅ Conexión a PostgreSQL exitosa'))
     .catch(err => {
@@ -268,19 +305,25 @@ function generarFolio() {
     const anio = fecha.getFullYear();
     const mes = String(fecha.getMonth() + 1).padStart(2, '0');
     const dia = String(fecha.getDate()).padStart(2, '0');
-    const aleatorio = crypto.randomBytes(3).toString('hex').toUpperCase(); // Más entropía
+    const aleatorio = crypto.randomBytes(3).toString('hex').toUpperCase();
     return `QJ-${anio}${mes}${dia}-${aleatorio}`;
 }
 
 // --- RUTAS DEL SERVIDOR ---
 
+// Ruta principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Ruta /1 (personalizar según necesidad)
 app.get('/1', (req, res) => {
-    // Tu lógica aquí
-    res.json({ message: 'Ruta /1' });
+    res.json({ 
+        message: 'API de Quejas - Transporte',
+        version: '6.1',
+        status: 'activo',
+        timestamp: new Date().toISOString()
+    });
 });
 
 // LOGIN SEGURO CON HASH DE CONTRASEÑAS
@@ -410,6 +453,15 @@ app.post('/api/refresh', async (req, res) => {
 // ENVÍO DE QUEJA CON VALIDACIÓN COMPLETA
 app.post('/enviar-queja', quejaLimiter, async (req, res) => {
     const { tipo } = req.body;
+    
+    // Log para debugging en desarrollo
+    if (NODE_ENV === 'development') {
+        logger.debug('Recibida petición de queja:', { 
+            tipo, 
+            origen: req.headers.origin,
+            ip: req.ip 
+        });
+    }
     
     // Validar con el esquema específico del tipo de queja
     const schema = quejaSchemas[tipo];
@@ -673,11 +725,12 @@ app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
-        version: '6.0'
+        version: '6.1',
+        environment: NODE_ENV
     });
 });
 
-// Middleware para rutas no encontradas
+// Middleware para rutas no encontradas (debe ir al final)
 app.use((req, res, next) => {
     logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl} desde IP: ${req.ip}`);
     res.status(404).json({ 
@@ -703,7 +756,8 @@ app.use((error, req, res, next) => {
 
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
-    logger.info(`🚀 Servidor de Quejas v6.0 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
+    logger.info(`🚀 Servidor de Quejas v6.1 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
+    logger.info(`📍 Orígenes CORS permitidos: ${allowedOrigins.join(', ')}`);
 });
 
 // Graceful shutdown mejorado
