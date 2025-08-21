@@ -19,7 +19,9 @@
         input { width: 100%; padding: 12px; border: 2px solid var(--color-border); border-radius: 8px; font-size: 1em; box-sizing: border-box; }
         button { width: 100%; padding: 15px; background-color: var(--color-accent-blue); color: var(--color-white); border: none; border-radius: 8px; font-size: 1.1em; font-weight: 700; cursor: pointer; transition: background-color 0.2s ease; }
         button:hover { background-color: #2563EB; }
-        #error-message { color: var(--color-error); margin-top: 15px; font-weight: 600; min-height: 20px; }
+        button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+        #error-message { color: var(--color-error); margin-top: 15px; font-weight: 600; min-height: 20px; visibility: hidden; opacity: 0; transition: visibility 0s, opacity 0.3s ease; }
+        #error-message.visible { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
@@ -34,7 +36,7 @@
                 <label for="password">Contraseña:</label>
                 <input type="password" id="password" name="password" required>
             </div>
-            <button type="submit">Iniciar Sesión</button>
+            <button type="submit" id="submitButton">Iniciar Sesión</button>
         </form>
         <p id="error-message"></p>
     </div>
@@ -42,27 +44,45 @@
     <script>
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('error-message');
+        const submitButton = document.getElementById('submitButton');
+
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            errorMessage.textContent = '';
+            errorMessage.classList.remove('visible');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Verificando...';
+            
             const username = e.target.username.value;
             const password = e.target.password.value;
+
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
+
                 const data = await response.json();
+
                 if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Error al iniciar sesión');
+                    // Si la respuesta es un error (como 401 o 400), lanzamos un error
+                    throw new Error(data.error || 'Error al iniciar sesión. Intente de nuevo.');
                 }
+
+                // Si todo sale bien, guardamos los tokens y redirigimos
                 localStorage.setItem('accessToken', data.accessToken);
                 localStorage.setItem('refreshToken', data.refreshToken);
                 localStorage.setItem('user', JSON.stringify(data.user));
                 window.location.href = '/dashboard.html';
+
             } catch (error) {
+                // Aquí atrapamos el error y lo mostramos en la pantalla
                 errorMessage.textContent = error.message;
+                errorMessage.classList.add('visible');
+            } finally {
+                // Esto se ejecuta siempre, haya error o no
+                submitButton.disabled = false;
+                submitButton.textContent = 'Iniciar Sesión';
             }
         });
     </script>
