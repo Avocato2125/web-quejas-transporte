@@ -378,7 +378,7 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
         });
     }
 
-    const { error } = schema.validate(req.body, { abortEarly: false });
+    const { error } = schema.validate(req.body, { abortEarly: false, allowUnknown: true });
     if (error) {
         const errores = error.details.map(d => d.message).join(', ');
         logger.warn(`Intento de envío de queja con datos inválidos: ${errores}`, { 
@@ -401,6 +401,21 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
         }
 
         const nuevoFolio = generarFolio();
+        
+        // 🔥 CONVERSIÓN AUTOMÁTICA DE HORAS A TIMESTAMPS
+        const today = new Date().toISOString().split('T')[0]; // Obtener fecha actual YYYY-MM-DD
+        
+        // Convertir campos de hora a timestamps si existen
+        const horaFields = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
+        horaFields.forEach(field => {
+            if (detalles[field] && detalles[field] !== '') {
+                // Si es solo hora (HH:MM), convertir a timestamp completo
+                if (detalles[field].match(/^\d{1,2}:\d{2}$/)) {
+                    detalles[field] = `${today} ${detalles[field]}:00`;
+                }
+            }
+        });
+        
         const commonFields = ['numero_empleado', 'empresa', 'ruta', 'colonia', 'turno', 'tipo', 'latitud', 'longitud', 'numero_unidad', 'folio'];
         const specificFields = config.fields;
         const allFieldNames = [...commonFields, ...specificFields];
@@ -411,7 +426,7 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
         ];
         
         const queryFields = allFieldNames.join(', ');
-        const queryValuePlaceholders = allFieldNames.map((_, i) => `$${i + 1}`).join(', ');
+        const queryValuePlaceholders = allFieldNames.map((_, i) => `${i + 1}`).join(', ');
         
         // Usar query preparado con nombre de tabla validado
         const query = `INSERT INTO ${config.tableName} (${queryFields}) VALUES (${queryValuePlaceholders}) RETURNING id;`;
