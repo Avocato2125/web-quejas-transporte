@@ -86,7 +86,7 @@
             <span id="welcomeUser" style="margin-right: 20px; font-weight: 600;"></span>
             <button id="logoutBtn" style="background:var(--color-error); color:white; border:none; padding: 8px 15px; border-radius: 8px; cursor:pointer; font-weight: 600;">Cerrar Sesión</button>
         </div>
-        </header>
+    </header>
 
     <nav class="tabs-nav" id="tabsNav">
         <button class="tab-btn active" data-tipo="Todos">Todas</button>
@@ -121,32 +121,28 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- INICIO DE LA MODIFICACIÓN DE SEGURIDAD ---
+        // --- INICIO DE LA LÓGICA DE AUTENTICACIÓN ---
         
-        // 1. Obtenemos el token y los datos del usuario del almacenamiento local
         const accessToken = localStorage.getItem('accessToken');
         const user = JSON.parse(localStorage.getItem('user'));
 
-        // 2. Si no hay token, redirigimos inmediatamente a la página de login
         if (!accessToken) {
             window.location.href = '/login.html';
-            return; // Detiene la ejecución del resto del script
+            return;
         }
         
-        // 3. Mostramos un mensaje de bienvenida y configuramos el botón de logout
         const welcomeUserSpan = document.getElementById('welcomeUser');
         const logoutBtn = document.getElementById('logoutBtn');
         if (user && user.username) {
             welcomeUserSpan.textContent = `Bienvenido, ${user.username}`;
         }
         logoutBtn.addEventListener('click', () => {
-            localStorage.clear(); // Limpia todos los tokens y datos de usuario
+            localStorage.clear();
             window.location.href = '/login.html';
         });
 
-        // --- FIN DE LA MODIFICACIÓN DE SEGURIDAD ---
+        // --- FIN DE LA LÓGICA DE AUTENTICACIÓN ---
 
-        // El resto de los selectores del DOM
         const tabsNav = document.getElementById('tabsNav');
         const quejasLista = document.getElementById('quejasLista');
         const detailsModal = document.getElementById('detailsModal');
@@ -161,14 +157,12 @@
 
         async function fetchQuejas() {
             try {
-                // 4. Añadimos la cabecera de Autorización a la petición fetch
                 const response = await fetch('/api/quejas', {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`
                     }
                 });
 
-                // Si el token es inválido o expiró, el servidor devolverá 401 o 403
                 if (response.status === 401 || response.status === 403) {
                     localStorage.clear();
                     window.location.href = '/login.html';
@@ -179,7 +173,7 @@
                 
                 const quejasData = await response.json();
                 if (quejasData.success) {
-                    todasLasQuejas = quejasData.data; // La respuesta ahora viene paginada
+                    todasLasQuejas = quejasData.data;
                     renderQuejas();
                 } else {
                     throw new Error(quejasData.error || 'Error desconocido');
@@ -291,7 +285,7 @@
                     method: 'PUT',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}` // Añadimos el token aquí también
+                        'Authorization': `Bearer ${accessToken}`
                     },
                     body: JSON.stringify({ 
                         id: quejaActual.id, 
