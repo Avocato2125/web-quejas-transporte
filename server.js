@@ -1,4 +1,4 @@
-// server.js (Versión 6.1 - Implementación Segura y Funcional)
+// server.js (Versión 6.2 - Corregido el bloqueo en el login)
 
 require('dotenv').config();
 
@@ -21,22 +21,19 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// VARIABLES DE ENTORNO OBLIGATORIAS
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
-requiredEnvVars.forEach(envVar => {
-    if (!process.env[envVar]) {
-        console.error(`❌ ERROR CRÍTICO: Variable de entorno ${envVar} no definida.`);
-        process.exit(1);
-    }
-});
+requiredEnvVars.forEach(envVar => { if (!process.env[envVar]) { console.error(`❌ ERROR CRÍTICO: Variable de entorno ${envVar} no definida.`); process.exit(1); } });
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET;
 
-// --- Logging con Winston MEJORADO ---
 const logger = winston.createLogger({
     level: NODE_ENV === 'production' ? 'info' : 'debug',
-    format: winston.format.combine(winston.format.timestamp(), winston.format.errors({ stack: true }), winston.format.json()),
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+    ),
     defaultMeta: { service: 'quejas-system' },
     transports: [
         new winston.transports.File({ filename: 'logs/error.log', level: 'error', maxsize: 5242880, maxFiles: 5, handleExceptions: true }),
@@ -47,7 +44,7 @@ if (NODE_ENV !== 'production') {
     logger.add(new winston.transports.Console({ format: winston.format.combine(winston.format.colorize(), winston.format.simple()) }));
 }
 
-// --- Middlewares de Seguridad MEJORADOS ---
+// --- Middlewares de Seguridad ---
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -59,34 +56,18 @@ app.use(helmet({
         }
     }
 }));
-
 const allowedOrigins = [ process.env.CORS_ORIGIN, `https://${process.env.RAILWAY_STATIC_URL}` ].filter(Boolean);
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin) || NODE_ENV === 'development') {
-            callback(null, true);
-        } else {
-            logger.warn(`Origen bloqueado por CORS: ${origin}`);
-            callback(new Error('Origen no permitido por la política de CORS'));
-        }
-    },
-    credentials: true
-}));
-
-// RATE LIMITING ESPECÍFICO
+app.use(cors({ origin: (origin, callback) => { if (!origin || allowedOrigins.includes(origin) || NODE_ENV === 'development') { callback(null, true); } else { logger.warn(`Origen bloqueado por CORS: ${origin}`); callback(new Error('Origen no permitido por CORS')); } }, credentials: true }));
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, skipSuccessfulRequests: true, message: { success: false, error: 'Demasiados intentos de login.' } });
 const quejaLimiter = rateLimit({ windowMs: 60 * 1000, max: 3, message: { success: false, error: 'Límite de quejas por minuto alcanzado.' } });
 app.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
-
-// --- Middlewares Generales ---
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Configuración de la Base de Datos ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    max: 20, idleTimeoutMillis: 30000, connectionTimeoutMillis: 2000
+    ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 pool.query('SELECT NOW()').then(() => logger.info('✅ Conexión a PostgreSQL exitosa')).catch(err => { logger.error('❌ Error conectando a PostgreSQL', { error: err.message }); process.exit(1); });
 
@@ -155,8 +136,74 @@ function generarFolio() {
 
 // --- RUTAS DEL SERVIDOR ---
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
-app.post('/api/login', loginLimiter, async (req, res) => { /* ... (código sin cambios) ... */ });
-app.post('/api/refresh', async (req, res) => { /* ... (código sin cambios) ... */ });
+
+app.post('/api/login', loginLimiter, async (req, res) => {
+    const schema = Joi.object({
+        username: Joi.string().alphanum().min(3).max(30).required(),
+        password: Joi.string().min(8).max(128).required()
+    });
+    const { error } = schema.validate(req.body);
+    if (error) { return res.status(400).json({ success: false, error: error.details.map(d => d.message).join(', ') }); }
+
+    const { username, password } = req.body;
+    try {
+        const result = await pool.query('SELECT id, username, password_hash, role FROM users WHERE username = $1 AND active = true', [username]);
+        if (result.rows.length === 0) {
+            logger.warn(`Intento de login fallido para usuario: ${username}`);
+            return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+        }
+        const user = result.rows[0];
+        const validPassword = await bcrypt.compare(password, user.password_hash);
+        if (!validPassword) {
+            logger.warn(`Contraseña incorrecta para usuario: ${username}`);
+            return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+        }
+
+        const accessToken = jwt.sign({ userId: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '15m' });
+        const refreshToken = jwt.sign({ userId: user.id }, REFRESH_JWT_SECRET, { expiresIn: '7d' });
+
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await pool.query('INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)', [user.id, refreshToken, expiresAt]);
+
+        logger.info(`Login exitoso para usuario: ${username}`);
+        res.json({ success: true, accessToken, refreshToken, user: { username: user.username, role: user.role } });
+    } catch (error) {
+        logger.error('Error en login:', { error: error.message, username });
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Ruta de ejemplo para crear un usuario (debería estar protegida por un admin)
+app.post('/api/create-user', async (req, res) => {
+    const { username, password, role } = req.body;
+    try {
+        const password_hash = await bcrypt.hash(password, 10);
+        await pool.query('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)', [username, password_hash, role]);
+        res.status(201).send(`Usuario ${username} creado exitosamente.`);
+        logger.info(`Nuevo usuario creado: ${username}`);
+    } catch (error) {
+        logger.error('Error creando usuario:', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al crear usuario.' });
+    }
+});
+
+app.post('/api/refresh', async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) { return res.status(401).json({ success: false, error: 'Refresh token requerido' }); }
+    try {
+        const decoded = jwt.verify(refreshToken, REFRESH_JWT_SECRET);
+        const result = await pool.query('SELECT rt.*, u.username, u.role FROM refresh_tokens rt JOIN users u ON rt.user_id = u.id WHERE rt.user_id = $1 AND rt.expires_at > NOW()', [decoded.userId]);
+        const validTokenRecord = result.rows.find(record => record.token_hash === refreshToken);
+        if (!validTokenRecord) { return res.status(403).json({ success: false, error: 'Refresh token inválido' }); }
+        const user = validTokenRecord;
+        const newAccessToken = jwt.sign({ userId: user.user_id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '15m' });
+        res.json({ success: true, accessToken: newAccessToken });
+    } catch (error) {
+        logger.error('Error en refresh token:', error);
+        res.status(403).json({ success: false, error: 'Refresh token inválido' });
+    }
+});
+
 app.post('/enviar-queja', quejaLimiter, async (req, res) => {
     const { tipo } = req.body;
     const schema = quejaSchemas[tipo];
@@ -192,18 +239,99 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
         res.status(500).json({ success: false, error: 'Error interno del servidor.' });
     }
 });
-app.get('/api/quejas', authenticateToken, async (req, res) => { /* ... (código sin cambios) ... */ });
-app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => { /* ... (código sin cambios) ... */ });
-app.post('/api/logout', authenticateToken, async (req, res) => { /* ... (código sin cambios) ... */ });
 
-// --- RUTAS DE UTILIDAD Y MANEJO DE ERRORES ---
-app.get('/health', (req, res) => { res.status(200).json({ status: 'ok', version: '6.1' }); });
-app.use((req, res, next) => { logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl} desde IP: ${req.ip}`); res.status(404).json({ success: false, error: `Ruta no encontrada` }); });
+app.get('/api/quejas', authenticateToken, async (req, res) => {
+    try {
+        const { page = 1, limit = 50, estado = 'Pendiente' } = req.query;
+        const pageNum = parseInt(page, 10);
+        const limitNum = Math.min(parseInt(limit, 10), 100);
+        const offset = (pageNum - 1) * limitNum;
+        let baseQuery = `SELECT * FROM vista_quejas_unificada WHERE estado_queja = $1`;
+        let queryParams = [estado];
+        const totalQuery = `SELECT COUNT(*) FROM vista_quejas_unificada WHERE estado_queja = $1;`;
+        const totalResult = await pool.query(totalQuery, [estado]);
+        const totalItems = parseInt(totalResult.rows[0].count, 10);
+        baseQuery += ` ORDER BY fecha_creacion DESC LIMIT $2 OFFSET $3`;
+        queryParams.push(limitNum, offset);
+        const result = await pool.query(baseQuery, queryParams);
+        res.status(200).json({
+            success: true,
+            data: result.rows,
+            pagination: { page: pageNum, limit: limitNum, totalItems, totalPages: Math.ceil(totalItems / limitNum) }
+        });
+    } catch (error) {
+        logger.error('Error al obtener las quejas:', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al consultar la base de datos.' });
+    }
+});
+
+app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { id, tabla_origen, folio, resolucion, estado = 'Revisada' } = req.body;
+        const responsable = req.user.username;
+        const schema = Joi.object({
+            id: Joi.number().integer().positive().required(),
+            tabla_origen: Joi.string().valid(...Object.values(QUEJAS_CONFIG).map(c => c.tableName)).required(),
+            folio: Joi.string().pattern(/^QJ-\d{8}-[A-F0-9]{6}$/).required(),
+            resolucion: Joi.string().min(10).max(1000).required(),
+            estado: Joi.string().valid('Revisada', 'Resuelta', 'Cerrada').default('Revisada')
+        });
+        const { error } = schema.validate(req.body);
+        if (error) { return res.status(400).json({ success: false, error: error.details.map(d => d.message).join(', ') }); }
+        if (!ALLOWED_TABLES[tabla_origen]) { return res.status(400).json({ success: false, error: 'Nombre de tabla no válido.' }); }
+        await client.query('BEGIN');
+        const checkQuery = `SELECT id, folio FROM ${tabla_origen} WHERE id = $1 AND folio = $2`;
+        const checkResult = await client.query(checkQuery, [id, folio]);
+        if (checkResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Queja no encontrada.' });
+        }
+        const updateQuery = `UPDATE ${tabla_origen} SET estado_queja = $1 WHERE id = $2`;
+        await client.query(updateQuery, [estado, id]);
+        const insertQuery = `INSERT INTO resoluciones (folio_queja, texto_resolucion, responsable) VALUES ($1, $2, $3);`;
+        await client.query(insertQuery, [folio, resolucion, responsable]);
+        await client.query('COMMIT');
+        logger.info(`Queja resuelta exitosamente`, { folio, responsable, estado, ip: req.ip });
+        res.status(200).json({ success: true, message: 'Queja resuelta y registrada exitosamente.' });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        logger.error('Error en la transacción de resolución:', { error: error.message, body: req.body, user: req.user?.username, ip: req.ip });
+        res.status(500).json({ success: false, error: 'Error interno del servidor al procesar la resolución.' });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/api/logout', authenticateToken, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.user.userId]);
+        logger.info(`Usuario ${req.user.username} cerró sesión desde IP: ${req.ip}`);
+        res.json({ success: true, message: 'Sesión cerrada exitosamente' });
+    } catch (error) {
+        logger.error('Error en logout:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+
+// --- Rutas de Utilidad y Manejo de Errores ---
+app.get('/health', (req, res) => { res.status(200).json({ status: 'ok', version: '6.2' }); });
+app.use((req, res, next) => { logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl}`); res.status(404).json({ success: false, error: `Ruta no encontrada` }); });
 app.use((error, req, res, next) => { logger.error('ERROR NO MANEJADO:', { error: error.message, stack: error.stack }); res.status(500).json({ success: false, error: 'Error inesperado.' }); });
 
-// --- ARRANQUE DEL SERVIDOR ---
-const server = app.listen(PORT, () => { logger.info(`🚀 Servidor de Quejas v6.1 iniciado en puerto ${PORT} en modo ${NODE_ENV}`); });
-const gracefulShutdown = (signal) => { /* ... (código sin cambios) ... */ };
+// --- Arranque del Servidor ---
+const server = app.listen(PORT, () => { logger.info(`🚀 Servidor de Quejas v6.2 iniciado en puerto ${PORT} en modo ${NODE_ENV}`); });
+const gracefulShutdown = (signal) => {
+    logger.info(`Recibida señal ${signal}. Iniciando cierre elegante...`);
+    server.close(() => {
+        logger.info('Servidor HTTP cerrado.');
+        pool.end(() => {
+            logger.info('Pool de base de datos cerrado.');
+            process.exit(0);
+        });
+    });
+};
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('unhandledRejection', (reason, promise) => { logger.error('Promesa rechazada no manejada:', { reason }); });
