@@ -1,5 +1,6 @@
 // server.js (Versión 6.3 - Añadido .trim() a la validación de login)
-
+// Pega esto al inicio de tu server.js
+console.log("DATABASE_URL que está usando el servidor:", process.env.DATABASE_URL);
 require('dotenv').config();
 
 // --- Dependencias ---
