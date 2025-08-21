@@ -1,4 +1,4 @@
-// server.js (Versión 6.2 - Corregido el bloqueo en el login)
+// server.js (Versión 6.3 - Añadido .trim() a la validación de login)
 
 require('dotenv').config();
 
@@ -29,11 +29,7 @@ const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET;
 
 const logger = winston.createLogger({
     level: NODE_ENV === 'production' ? 'info' : 'debug',
-    format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.errors({ stack: true }),
-        winston.format.json()
-    ),
+    format: winston.format.combine(winston.format.timestamp(), winston.format.errors({ stack: true }), winston.format.json()),
     defaultMeta: { service: 'quejas-system' },
     transports: [
         new winston.transports.File({ filename: 'logs/error.log', level: 'error', maxsize: 5242880, maxFiles: 5, handleExceptions: true }),
@@ -61,6 +57,8 @@ app.use(cors({ origin: (origin, callback) => { if (!origin || allowedOrigins.inc
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, skipSuccessfulRequests: true, message: { success: false, error: 'Demasiados intentos de login.' } });
 const quejaLimiter = rateLimit({ windowMs: 60 * 1000, max: 3, message: { success: false, error: 'Límite de quejas por minuto alcanzado.' } });
 app.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+
+// --- Middlewares Generales ---
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -138,16 +136,24 @@ function generarFolio() {
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 app.post('/api/login', loginLimiter, async (req, res) => {
+    // =================================================================
+    // 🔥 INICIO DE LA CORRECCIÓN v6.3 🔥
+    // Añadimos .trim() para eliminar espacios en blanco accidentales.
+    // =================================================================
     const schema = Joi.object({
-        username: Joi.string().alphanum().min(3).max(30).required(),
-        password: Joi.string().min(8).max(128).required()
+        username: Joi.string().alphanum().min(3).max(30).trim().required(),
+        password: Joi.string().min(8).max(128).trim().required()
     });
+    // =================================================================
+    // 🔥 FIN DE LA CORRECCIÓN 🔥
+    // =================================================================
+
     const { error } = schema.validate(req.body);
     if (error) { return res.status(400).json({ success: false, error: error.details.map(d => d.message).join(', ') }); }
 
     const { username, password } = req.body;
     try {
-        const result = await pool.query('SELECT id, username, password_hash, role FROM users WHERE username = $1 AND active = true', [username]);
+        const result = await pool.query('SELECT id, username, password_hash, role, active FROM users WHERE username = $1 AND active = true', [username]);
         if (result.rows.length === 0) {
             logger.warn(`Intento de login fallido para usuario: ${username}`);
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
@@ -161,7 +167,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
         const accessToken = jwt.sign({ userId: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '15m' });
         const refreshToken = jwt.sign({ userId: user.id }, REFRESH_JWT_SECRET, { expiresIn: '7d' });
-
+        
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         await pool.query('INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)', [user.id, refreshToken, expiresAt]);
 
@@ -170,20 +176,6 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     } catch (error) {
         logger.error('Error en login:', { error: error.message, username });
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
-    }
-});
-
-// Ruta de ejemplo para crear un usuario (debería estar protegida por un admin)
-app.post('/api/create-user', async (req, res) => {
-    const { username, password, role } = req.body;
-    try {
-        const password_hash = await bcrypt.hash(password, 10);
-        await pool.query('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)', [username, password_hash, role]);
-        res.status(201).send(`Usuario ${username} creado exitosamente.`);
-        logger.info(`Nuevo usuario creado: ${username}`);
-    } catch (error) {
-        logger.error('Error creando usuario:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Error al crear usuario.' });
     }
 });
 
@@ -314,14 +306,13 @@ app.post('/api/logout', authenticateToken, async (req, res) => {
     }
 });
 
-
 // --- Rutas de Utilidad y Manejo de Errores ---
-app.get('/health', (req, res) => { res.status(200).json({ status: 'ok', version: '6.2' }); });
+app.get('/health', (req, res) => { res.status(200).json({ status: 'ok', version: '6.3' }); });
 app.use((req, res, next) => { logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl}`); res.status(404).json({ success: false, error: `Ruta no encontrada` }); });
 app.use((error, req, res, next) => { logger.error('ERROR NO MANEJADO:', { error: error.message, stack: error.stack }); res.status(500).json({ success: false, error: 'Error inesperado.' }); });
 
 // --- Arranque del Servidor ---
-const server = app.listen(PORT, () => { logger.info(`🚀 Servidor de Quejas v6.2 iniciado en puerto ${PORT} en modo ${NODE_ENV}`); });
+const server = app.listen(PORT, () => { logger.info(`🚀 Servidor de Quejas v6.3 iniciado en puerto ${PORT} en modo ${NODE_ENV}`); });
 const gracefulShutdown = (signal) => {
     logger.info(`Recibida señal ${signal}. Iniciando cierre elegante...`);
     server.close(() => {
