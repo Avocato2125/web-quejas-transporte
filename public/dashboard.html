@@ -82,6 +82,9 @@
 
     <header class="header">
         <h1>Panel de Quejas Pendientes</h1>
+        <div class="search-container">
+            <input type="text" id="searchFolio" placeholder="Buscar por folio...">
+        </div>
         <div>
             <span id="welcomeUser" style="margin-right: 20px; font-weight: 600;"></span>
             <button id="logoutBtn" style="background:var(--color-error); color:white; border:none; padding: 8px 15px; border-radius: 8px; cursor:pointer; font-weight: 600;">Cerrar Sesión</button>
@@ -188,7 +191,7 @@
             quejasLista.innerHTML = '';
             const activeTab = document.querySelector('.tab-btn.active');
             const tipoFiltro = activeTab.dataset.tipo;
-            const searchTerm = searchInput.value.trim().toUpperCase();
+            const searchTerm = searchInput ? searchInput.value.trim().toUpperCase() : '';
             const quejasPendientes = todasLasQuejas.filter(q => q.estado_queja === 'Pendiente');
             const quejasFiltradasPorTipo = tipoFiltro === 'Todos' ? quejasPendientes : quejasPendientes.filter(q => q.tipo === tipoFiltro);
             const quejasFinales = quejasFiltradasPorTipo.filter(queja => {
@@ -264,7 +267,9 @@
             }
         });
 
-        searchInput.addEventListener('input', renderQuejas);
+        if (searchInput) {
+            searchInput.addEventListener('input', renderQuejas);
+        }
 
         quejasLista.addEventListener('click', (e) => {
             const tarjeta = e.target.closest('.queja-tarjeta');
