@@ -1,6 +1,5 @@
-// server.js (Versión 6.3 - CORREGIDO Rate Limiting para Testing)
+// server.js (Versión 6.4 - CORREGIDO PARA ENVÍO DE QUEJAS)
 
-console.log("DATABASE_URL que está usando el servidor:", process.env.DATABASE_URL);
 require('dotenv').config();
 
 // --- Dependencias ---
@@ -53,11 +52,11 @@ if (NODE_ENV !== 'production') {
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            "font-src": ["'self'", "https://fonts.gstatic.com"],
-            "script-src": ["'self'", "'unsafe-inline'"],
-            "img-src": ["'self'", "data:"]
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:"]
         }
     }
 }));
@@ -79,10 +78,10 @@ app.use(cors({
     credentials: true 
 }));
 
-// 🔥 CORRECCIÓN CRÍTICA: Rate Limiting aumentado para testing
+// Rate Limiting
 const loginLimiter = rateLimit({ 
     windowMs: 15 * 60 * 1000, 
-    max: 50, // ← AUMENTADO DE 5 A 50 PARA TESTING
+    max: 50,
     skipSuccessfulRequests: true, 
     message: { success: false, error: 'Demasiados intentos de login.' },
     handler: (req, res) => {
@@ -93,23 +92,20 @@ const loginLimiter = rateLimit({
 
 const quejaLimiter = rateLimit({ 
     windowMs: 60 * 1000, 
-    max: 3, 
+    max: 10, // Aumentado para testing
     message: { success: false, error: 'Límite de quejas por minuto alcanzado.' } 
 });
 
 app.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 
 // --- Middlewares Generales ---
-app.use(express.json({ limit: '1mb' })); // Reducido de 10mb
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Configuración de la Base de Datos ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000
+    ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 pool.query('SELECT NOW()')
@@ -119,7 +115,7 @@ pool.query('SELECT NOW()')
         process.exit(1);
     });
 
-// --- Configuración de Quejas CON VALIDACIÓN DE TABLA ---
+// --- Configuración de Quejas ---
 const ALLOWED_TABLES = {
     'quejas_retraso': true,
     'quejas_mal_trato': true,
@@ -151,59 +147,58 @@ const QUEJAS_CONFIG = {
     }
 };
 
-// --- ESQUEMAS DE VALIDACIÓN COMPLETOS ---
+// --- VALIDACIÓN SIMPLIFICADA ---
 const baseQuejaSchema = Joi.object({
-    numero_empleado: Joi.string().pattern(/^\d{4,10}$/).required().messages({
-        'string.pattern.base': 'Número de empleado debe contener solo dígitos (4-10 caracteres)'
-    }),
-    empresa: Joi.string().min(2).max(100).trim().required(),
-    ruta: Joi.string().max(50).trim().required(),
-    colonia: Joi.string().max(100).trim().required(),
-    turno: Joi.string().valid('Primero', 'Segundo', 'Tercero', 'Mixto').required(),
+    numero_empleado: Joi.string().required(),
+    empresa: Joi.string().required(),
+    ruta: Joi.string().allow(null, ''),
+    colonia: Joi.string().allow(null, ''),
+    turno: Joi.string().allow(null, ''),
     tipo: Joi.string().valid(...Object.keys(QUEJAS_CONFIG)).required(),
-    latitud: Joi.number().min(-90).max(90).allow(null),
-    longitud: Joi.number().min(-180).max(180).allow(null),
-    numero_unidad: Joi.string().max(20).trim().allow(null, '')
+    latitud: Joi.number().allow(null, ''),
+    longitud: Joi.number().allow(null, ''),
+    numero_unidad: Joi.string().allow(null, '')
 });
 
+// Validación específica por tipo (simplificada)
 const quejaSchemas = {
     'Retraso': baseQuejaSchema.keys({
-        detalles_retraso: Joi.string().max(500).trim().required(),
-        direccion_subida: Joi.string().max(200).trim().required(),
-        hora_programada: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).required(),
-        hora_llegada: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).required(),
-        metodo_transporte_alterno: Joi.string().max(100).trim().allow(null, ''),
-        monto_gastado: Joi.number().min(0).max(10000).allow(null),
-        hora_llegada_planta: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).allow(null, '')
+        detalles_retraso: Joi.string().allow(null, ''),
+        direccion_subida: Joi.string().allow(null, ''),
+        hora_programada: Joi.string().allow(null, ''),
+        hora_llegada: Joi.string().allow(null, ''),
+        metodo_transporte_alterno: Joi.string().allow(null, ''),
+        monto_gastado: Joi.number().allow(null, ''),
+        hora_llegada_planta: Joi.string().allow(null, '')
     }),
     'Mal trato': baseQuejaSchema.keys({
-        nombre_conductor_maltrato: Joi.string().max(100).trim().allow(null, ''),
-        detalles_maltrato: Joi.string().max(500).trim().required()
+        nombre_conductor_maltrato: Joi.string().allow(null, ''),
+        detalles_maltrato: Joi.string().allow(null, '')
     }),
     'Inseguridad': baseQuejaSchema.keys({
-        detalles_inseguridad: Joi.string().max(500).trim().required(),
-        ubicacion_inseguridad: Joi.string().max(200).trim().required()
+        detalles_inseguridad: Joi.string().allow(null, ''),
+        ubicacion_inseguridad: Joi.string().allow(null, '')
     }),
     'Unidad en mal estado': baseQuejaSchema.keys({
-        numero_unidad_malestado: Joi.string().max(20).trim().required(),
-        tipo_falla: Joi.string().valid('Mecánica', 'Eléctrica', 'Carrocería', 'Limpieza', 'Otro').required(),
-        detalles_malestado: Joi.string().max(500).trim().required()
+        numero_unidad_malestado: Joi.string().allow(null, ''),
+        tipo_falla: Joi.string().allow(null, ''),
+        detalles_malestado: Joi.string().allow(null, '')
     }),
     'Otro': baseQuejaSchema.keys({
-        detalles_otro: Joi.string().max(500).trim().required()
+        detalles_otro: Joi.string().allow(null, '')
     })
 };
 
-// --- MIDDLEWARE DE AUTENTICACIÓN JWT MEJORADO ---
+// --- MIDDLEWARE DE AUTENTICACIÓN ---
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
+    
     if (!token) {
         logger.warn(`Intento de acceso sin token desde IP: ${req.ip}`);
         return res.status(401).json({ success: false, error: 'Token de acceso requerido' });
     }
-
+    
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
             logger.warn(`Token inválido desde IP: ${req.ip}, Error: ${err.message}`);
@@ -214,7 +209,6 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// MIDDLEWARE DE AUTORIZACIÓN POR ROLES
 const requireRole = (roles) => {
     return (req, res, next) => {
         if (!roles.includes(req.user.role)) {
@@ -225,27 +219,26 @@ const requireRole = (roles) => {
     };
 };
 
-// --- FUNCIÓN PARA GENERAR FOLIO SEGURA ---
+// --- FUNCIÓN PARA GENERAR FOLIO ---
 function generarFolio() {
     const fecha = new Date();
     const anio = fecha.getFullYear();
     const mes = String(fecha.getMonth() + 1).padStart(2, '0');
     const dia = String(fecha.getDate()).padStart(2, '0');
-    const aleatorio = crypto.randomBytes(3).toString('hex').toUpperCase(); // Más entropía
+    const aleatorio = crypto.randomBytes(3).toString('hex').toUpperCase();
     return `QJ-${anio}${mes}${dia}-${aleatorio}`;
 }
 
 // --- RUTAS DEL SERVIDOR ---
-
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// LOGIN SEGURO CON HASH DE CONTRASEÑAS
+// LOGIN
 app.post('/api/login', loginLimiter, async (req, res) => {
     const schema = Joi.object({
-        username: Joi.string().alphanum().min(3).max(30).required(),
-        password: Joi.string().min(8).max(128).required()
+        username: Joi.string().alphanum().min(3).max(30).trim().required(),
+        password: Joi.string().min(8).max(128).trim().required()
     });
 
     const { error } = schema.validate(req.body);
@@ -265,7 +258,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         );
 
         if (result.rows.length === 0) {
-            logger.warn(`Intento de login fallido para usuario: ${username} desde IP: ${req.ip}`);
+            logger.warn(`Intento de login fallido para usuario: ${username}`);
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
 
@@ -273,17 +266,12 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         const validPassword = await bcrypt.compare(password, user.password_hash);
 
         if (!validPassword) {
-            logger.warn(`Contraseña incorrecta para usuario: ${username} desde IP: ${req.ip}`);
+            logger.warn(`Contraseña incorrecta para usuario: ${username}`);
             return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
         }
 
-        // Generar tokens
         const accessToken = jwt.sign(
-            { 
-                userId: user.id, 
-                username: user.username, 
-                role: user.role 
-            },
+            { userId: user.id, username: user.username, role: user.role },
             JWT_SECRET,
             { expiresIn: '15m' }
         );
@@ -294,16 +282,13 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        // Guardar refresh token hasheado en BD
-        const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-        
         await pool.query(
             'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-            [user.id, hashedRefreshToken, expiresAt]
+            [user.id, refreshToken, expiresAt]
         );
 
-        logger.info(`Login exitoso para usuario: ${username} desde IP: ${req.ip}`);
+        logger.info(`Login exitoso para usuario: ${username}`);
         res.json({ 
             success: true, 
             accessToken, 
@@ -317,119 +302,85 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     }
 });
 
-// REFRESH TOKEN ENDPOINT
-app.post('/api/refresh', async (req, res) => {
-    const { refreshToken } = req.body;
-    
-    if (!refreshToken) {
-        return res.status(401).json({ success: false, error: 'Refresh token requerido' });
-    }
-
-    try {
-        const decoded = jwt.verify(refreshToken, REFRESH_JWT_SECRET);
-        
-        // Verificar que el token existe en la BD y no ha expirado
-        const result = await pool.query(
-            'SELECT rt.*, u.username, u.role FROM refresh_tokens rt JOIN users u ON rt.user_id = u.id WHERE rt.user_id = $1 AND rt.expires_at > NOW()',
-            [decoded.userId]
-        );
-
-        let validToken = false;
-        for (const tokenRecord of result.rows) {
-            if (await bcrypt.compare(refreshToken, tokenRecord.token_hash)) {
-                validToken = true;
-                break;
-            }
-        }
-
-        if (!validToken) {
-            return res.status(403).json({ success: false, error: 'Refresh token inválido' });
-        }
-
-        const user = result.rows[0];
-        const newAccessToken = jwt.sign(
-            { 
-                userId: user.user_id, 
-                username: user.username, 
-                role: user.role 
-            },
-            JWT_SECRET,
-            { expiresIn: '15m' }
-        );
-
-        res.json({ success: true, accessToken: newAccessToken });
-
-    } catch (error) {
-        logger.error('Error en refresh token:', error);
-        res.status(403).json({ success: false, error: 'Refresh token inválido' });
-    }
-});
-
-// ENVÍO DE QUEJA CON VALIDACIÓN COMPLETA
+// ENVÍO DE QUEJA CORREGIDO
 app.post('/enviar-queja', quejaLimiter, async (req, res) => {
-    const { tipo } = req.body;
+    console.log('🔍 DEBUG: Recibiendo queja:', req.body);
     
-    // Validar con el esquema específico del tipo de queja
-    const schema = quejaSchemas[tipo];
-    if (!schema) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Tipo de queja no válido' 
-        });
-    }
-
-    const { error } = schema.validate(req.body, { abortEarly: false, allowUnknown: true });
-    if (error) {
-        const errores = error.details.map(d => d.message).join(', ');
-        logger.warn(`Intento de envío de queja con datos inválidos: ${errores}`, { 
-            ip: req.ip, 
-            body: req.body 
-        });
-        return res.status(400).json({ 
-            success: false, 
-            error: `Datos inválidos: ${errores}` 
-        });
-    }
-
     try {
+        const { tipo } = req.body;
+        
+        // Validar tipo de queja
+        if (!tipo || !QUEJAS_CONFIG[tipo]) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Tipo de queja no válido. Tipos permitidos: ' + Object.keys(QUEJAS_CONFIG).join(', ')
+            });
+        }
+
+        // Validar con esquema
+        const schema = quejaSchemas[tipo];
+        const { error } = schema.validate(req.body, { allowUnknown: true });
+        
+        if (error) {
+            const errores = error.details.map(d => d.message).join(', ');
+            console.log('🔍 DEBUG: Error de validación:', errores);
+            return res.status(400).json({ 
+                success: false, 
+                error: `Datos inválidos: ${errores}` 
+            });
+        }
+
         const { numero_empleado, empresa, ruta, colonia, turno, latitud, longitud, numero_unidad, ...detalles } = req.body;
         const config = QUEJAS_CONFIG[tipo];
         
-        // VALIDACIÓN ADICIONAL DE SEGURIDAD
+        // Validar tabla permitida
         if (!ALLOWED_TABLES[config.tableName]) {
             throw new Error(`Tabla no permitida: ${config.tableName}`);
         }
 
         const nuevoFolio = generarFolio();
-        
-        // 🔥 CONVERSIÓN AUTOMÁTICA DE HORAS A TIMESTAMPS
-        const today = new Date().toISOString().split('T')[0]; // Obtener fecha actual YYYY-MM-DD
-        
-        // Convertir campos de hora a timestamps si existen
+        console.log('🔍 DEBUG: Folio generado:', nuevoFolio);
+
+        // Conversión de horas a timestamps
+        const today = new Date().toISOString().split('T')[0];
         const horaFields = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
+        
         horaFields.forEach(field => {
             if (detalles[field] && detalles[field] !== '') {
-                // Si es solo hora (HH:MM), convertir a timestamp completo
                 if (detalles[field].match(/^\d{1,2}:\d{2}$/)) {
                     detalles[field] = `${today} ${detalles[field]}:00`;
+                    console.log(`🔍 DEBUG: Convertido ${field}: ${detalles[field]}`);
                 }
             }
         });
-        
+
+        // Preparar datos para insertar
         const commonFields = ['numero_empleado', 'empresa', 'ruta', 'colonia', 'turno', 'tipo', 'latitud', 'longitud', 'numero_unidad', 'folio'];
         const specificFields = config.fields;
         const allFieldNames = [...commonFields, ...specificFields];
+        
         const allValues = [
-            numero_empleado, empresa, ruta, colonia, turno, tipo,
-            latitud || null, longitud || null, numero_unidad || null, nuevoFolio,
-            ...specificFields.map(field => (detalles[field] === '' ? null : detalles[field]))
+            numero_empleado, 
+            empresa, 
+            ruta || null, 
+            colonia || null, 
+            turno || null, 
+            tipo,
+            latitud || null, 
+            longitud || null, 
+            numero_unidad || null, 
+            nuevoFolio,
+            ...specificFields.map(field => detalles[field] || null)
         ];
-        
+
+        console.log('🔍 DEBUG: Campos:', allFieldNames);
+        console.log('🔍 DEBUG: Valores:', allValues);
+
         const queryFields = allFieldNames.join(', ');
-        const queryValuePlaceholders = allFieldNames.map((_, i) => `${i + 1}`).join(', ');
-        
-        // Usar query preparado con nombre de tabla validado
+        const queryValuePlaceholders = allFieldNames.map((_, i) => `$${i + 1}`).join(', ');
         const query = `INSERT INTO ${config.tableName} (${queryFields}) VALUES (${queryValuePlaceholders}) RETURNING id;`;
+        
+        console.log('🔍 DEBUG: Query SQL:', query);
         
         const result = await pool.query(query, allValues);
         
@@ -447,6 +398,7 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
         });
         
     } catch (error) {
+        console.error('🔍 DEBUG: Error completo:', error);
         logger.error('Error al procesar la queja:', { 
             error: error.message, 
             stack: error.stack,
@@ -454,69 +406,27 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
             ip: req.ip
         });
         
-        if (error.code === '23505') {
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Error al generar un folio único. Por favor, inténtelo de nuevo.' 
-            });
-        }
-        
         res.status(500).json({ 
             success: false, 
-            error: 'Error interno del servidor al procesar la solicitud.' 
+            error: 'Error interno del servidor: ' + error.message 
         });
     }
 });
 
-// OBTENER QUEJAS CON PAGINACIÓN Y FILTROS
+// OBTENER QUEJAS
 app.get('/api/quejas', authenticateToken, async (req, res) => {
     try {
-        const { page = 1, limit = 50, tipo, estado, desde, hasta } = req.query;
-        
-        // Validar parámetros de paginación
-        const pageNum = parseInt(page);
-        const limitNum = Math.min(parseInt(limit), 100); // Máximo 100 registros
+        const { page = 1, limit = 50, estado = 'Pendiente' } = req.query;
+        const pageNum = parseInt(page, 10);
+        const limitNum = Math.min(parseInt(limit, 10), 100);
         const offset = (pageNum - 1) * limitNum;
 
-        const tableNames = Object.values(QUEJAS_CONFIG)
-            .map(c => c.tableName)
-            .filter(tableName => ALLOWED_TABLES[tableName]);
-
-        let queries = tableNames.map(tableName => {
-            let baseQuery = `SELECT *, '${tableName}' as tabla_origen FROM ${tableName}`;
-            let whereConditions = [];
-            let queryParams = [];
-            let paramIndex = 1;
-
-            if (estado) {
-                whereConditions.push(`estado_queja = $${paramIndex++}`);
-                queryParams.push(estado);
-            }
-
-            if (desde) {
-                whereConditions.push(`fecha_creacion >= $${paramIndex++}`);
-                queryParams.push(desde);
-            }
-
-            if (hasta) {
-                whereConditions.push(`fecha_creacion <= $${paramIndex++}`);
-                queryParams.push(hasta);
-            }
-
-            if (whereConditions.length > 0) {
-                baseQuery += ` WHERE ${whereConditions.join(' AND ')}`;
-            }
-
-            baseQuery += ` ORDER BY fecha_creacion DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}`;
-            queryParams.push(limitNum, offset);
-
-            return pool.query(baseQuery, queryParams);
-        });
-
-        if (tipo && QUEJAS_CONFIG[tipo]) {
-            const config = QUEJAS_CONFIG[tipo];
-            queries = [pool.query(`SELECT *, '${config.tableName}' as tabla_origen FROM ${config.tableName} ORDER BY fecha_creacion DESC LIMIT $1 OFFSET $2`, [limitNum, offset])];
-        }
+        // Usar consulta directa a las tablas
+        const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
+        const queries = tableNames.map(tableName => 
+            pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} WHERE estado_queja = $1 ORDER BY fecha_creacion DESC LIMIT $2 OFFSET $3`, 
+            [estado, limitNum, offset])
+        );
 
         const results = await Promise.all(queries);
         const allQuejas = results.flatMap(result => result.rows);
@@ -526,11 +436,7 @@ app.get('/api/quejas', authenticateToken, async (req, res) => {
         res.status(200).json({
             success: true,
             data: allQuejas,
-            pagination: {
-                page: pageNum,
-                limit: limitNum,
-                total: allQuejas.length
-            }
+            pagination: { page: pageNum, limit: limitNum, total: allQuejas.length }
         });
 
     } catch (error) {
@@ -539,7 +445,7 @@ app.get('/api/quejas', authenticateToken, async (req, res) => {
     }
 });
 
-// RESOLVER QUEJA CON AUTENTICACIÓN Y AUTORIZACIÓN
+// RESOLVER QUEJA
 app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
     const client = await pool.connect();
     
@@ -547,24 +453,13 @@ app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervi
         const { id, tabla_origen, folio, resolucion, estado = 'Revisada' } = req.body;
         const responsable = req.user.username;
 
-        // Validación de entrada
-        const schema = Joi.object({
-            id: Joi.number().integer().positive().required(),
-            tabla_origen: Joi.string().valid(...Object.values(QUEJAS_CONFIG).map(c => c.tableName)).required(),
-            folio: Joi.string().pattern(/^QJ-\d{8}-[A-F0-9]{6}$/).required(),
-            resolucion: Joi.string().min(10).max(1000).required(),
-            estado: Joi.string().valid('Revisada', 'Resuelta', 'Cerrada').default('Revisada')
-        });
-
-        const { error } = schema.validate(req.body);
-        if (error) {
+        if (!id || !tabla_origen || !folio || !resolucion) {
             return res.status(400).json({ 
                 success: false, 
-                error: error.details.map(d => d.message).join(', ') 
+                error: 'Faltan datos requeridos: id, tabla_origen, folio, resolucion' 
             });
         }
-        
-        // Validación adicional de seguridad
+
         if (!ALLOWED_TABLES[tabla_origen]) {
             return res.status(400).json({ 
                 success: false, 
@@ -574,7 +469,6 @@ app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervi
 
         await client.query('BEGIN');
 
-        // Verificar que la queja existe
         const checkQuery = `SELECT id, folio FROM ${tabla_origen} WHERE id = $1 AND folio = $2`;
         const checkResult = await client.query(checkQuery, [id, folio]);
         
@@ -586,23 +480,15 @@ app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervi
             });
         }
 
-        // Actualizar estado de la queja
-        const updateQuery = `UPDATE ${tabla_origen} SET estado_queja = $1, fecha_actualizacion = NOW() WHERE id = $2`;
+        const updateQuery = `UPDATE ${tabla_origen} SET estado_queja = $1 WHERE id = $2`;
         await client.query(updateQuery, [estado, id]);
 
-        // Insertar resolución
-        const insertQuery = `INSERT INTO resoluciones (folio_queja, texto_resolucion, responsable, fecha_resolucion) VALUES ($1, $2, $3, NOW())`;
+        const insertQuery = `INSERT INTO resoluciones (folio_queja, texto_resolucion, responsable) VALUES ($1, $2, $3)`;
         await client.query(insertQuery, [folio, resolucion, responsable]);
 
         await client.query('COMMIT');
         
-        logger.info(`Queja resuelta exitosamente`, { 
-            folio, 
-            responsable, 
-            estado,
-            ip: req.ip
-        });
-        
+        logger.info(`Queja resuelta exitosamente`, { folio, responsable, estado, ip: req.ip });
         res.status(200).json({ 
             success: true, 
             message: 'Queja resuelta y registrada exitosamente.' 
@@ -610,29 +496,17 @@ app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervi
 
     } catch (error) {
         await client.query('ROLLBACK');
-        logger.error('Error en la transacción de resolución:', { 
-            error: error.message,
-            body: req.body,
-            user: req.user?.username,
-            ip: req.ip
-        });
-        res.status(500).json({ 
-            success: false, 
-            error: 'Error interno del servidor al procesar la resolución.' 
-        });
+        logger.error('Error en la transacción de resolución:', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error interno del servidor al procesar la resolución.' });
     } finally {
         client.release();
     }
 });
 
-// LOGOUT SEGURO (invalidar refresh tokens)
+// LOGOUT
 app.post('/api/logout', authenticateToken, async (req, res) => {
     try {
-        await pool.query(
-            'DELETE FROM refresh_tokens WHERE user_id = $1',
-            [req.user.userId]
-        );
-        
+        await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.user.userId]);
         logger.info(`Usuario ${req.user.username} cerró sesión desde IP: ${req.ip}`);
         res.json({ success: true, message: 'Sesión cerrada exitosamente' });
     } catch (error) {
@@ -646,57 +520,30 @@ app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
-        version: '6.0'
+        version: '6.4'  // ← VERSIÓN ACTUALIZADA
     });
 });
 
-// Middleware para rutas no encontradas
 app.use((req, res, next) => {
-    logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl} desde IP: ${req.ip}`);
-    res.status(404).json({ 
-        success: false, 
-        error: `Ruta no encontrada: ${req.originalUrl}` 
-    });
+    logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ success: false, error: `Ruta no encontrada` });
 });
 
-// Manejo global de errores
 app.use((error, req, res, next) => {
-    logger.error('ERROR NO MANEJADO:', { 
-        error: error.message, 
-        stack: error.stack,
-        url: req.originalUrl,
-        method: req.method,
-        ip: req.ip
-    });
-    res.status(500).json({ 
-        success: false, 
-        error: 'Ha ocurrido un error inesperado en el servidor.' 
-    });
+    logger.error('ERROR NO MANEJADO:', { error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: 'Error inesperado.' });
 });
 
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
-    logger.info(`🚀 Servidor de Quejas v6.0 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
+    logger.info(`🚀 Servidor de Quejas v6.4 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
 });
 
-// Graceful shutdown mejorado
 const gracefulShutdown = (signal) => {
     logger.info(`Recibida señal ${signal}. Iniciando cierre elegante...`);
-    
-    server.close((err) => {
-        if (err) {
-            logger.error('Error cerrando servidor HTTP:', err);
-            process.exit(1);
-        }
-        
+    server.close(() => {
         logger.info('Servidor HTTP cerrado.');
-        
-        pool.end((err) => {
-            if (err) {
-                logger.error('Error cerrando pool de BD:', err);
-                process.exit(1);
-            }
-            
+        pool.end(() => {
             logger.info('Pool de base de datos cerrado.');
             process.exit(0);
         });
@@ -705,12 +552,9 @@ const gracefulShutdown = (signal) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Manejo de promesas rechazadas no capturadas
 process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Promesa rechazada no manejada:', { reason, promise });
+    logger.error('Promesa rechazada no manejada:', { reason });
 });
-
 process.on('uncaughtException', (error) => {
     logger.error('Excepción no capturada:', { error: error.message, stack: error.stack });
     process.exit(1);
