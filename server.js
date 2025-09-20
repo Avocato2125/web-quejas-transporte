@@ -14,23 +14,17 @@ const winston = require('winston');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const helmet = require('helmet');
+const puppeteer = require('puppeteer');
+const htmlPdf = require('html-pdf-node');
+const fs = require('fs');
+const { sanitizeRequestBody, sanitizeQueryParams, sanitizeForFrontend } = require('./middleware/sanitization');
+const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler');
 
 // --- INICIALIZACIÓN Y CONFIGURACIÓN ---
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-
-const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
-requiredEnvVars.forEach(envVar => { 
-    if (!process.env[envVar]) { 
-        console.error(`❌ ERROR CRÍTICO: Variable de entorno ${envVar} no definida.`); 
-        process.exit(1); 
-    } 
-});
-
-const JWT_SECRET = process.env.JWT_SECRET;
-const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET;
 
 const logger = winston.createLogger({
     level: NODE_ENV === 'production' ? 'info' : 'debug',
@@ -48,16 +42,37 @@ if (NODE_ENV !== 'production') {
     }));
 }
 
+// Validar variables de entorno requeridas
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
+requiredEnvVars.forEach(envVar => { 
+    if (!process.env[envVar]) { 
+        logger.error(`ERROR CRÍTICO: Variable de entorno ${envVar} no definida.`); 
+        process.exit(1); 
+    } 
+});
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET;
+
 // --- Middlewares de Seguridad ---
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:"]
+            defaultSrc: ['\'self\''],
+            styleSrc: ['\'self\'', '\'unsafe-inline\'', 'https://fonts.googleapis.com'],
+            fontSrc: ['\'self\'', 'https://fonts.gstatic.com'],
+            scriptSrc: ['\'self\'', '\'unsafe-inline\''],
+            imgSrc: ['\'self\'', 'data:']
         }
+    },
+    xFrameOptions: { action: 'deny' },
+    xContentTypeOptions: true,
+    xXssProtection: true,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
     }
 }));
 
@@ -79,9 +94,12 @@ app.use(cors({
 }));
 
 // Rate Limiting
+// Configuración de rate limiting basada en entorno
+const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined || process.env.npm_lifecycle_event === 'test';
+
 const loginLimiter = rateLimit({ 
     windowMs: 15 * 60 * 1000, 
-    max: 50,
+    max: isTestEnvironment ? 1000 : 50, // Límite alto para tests
     skipSuccessfulRequests: true, 
     message: { success: false, error: 'Demasiados intentos de login.' },
     handler: (req, res) => {
@@ -92,15 +110,26 @@ const loginLimiter = rateLimit({
 
 const quejaLimiter = rateLimit({ 
     windowMs: 60 * 1000, 
-    max: 10, // Aumentado para testing
+    max: isTestEnvironment ? 1000 : 10, // Límite alto para tests
     message: { success: false, error: 'Límite de quejas por minuto alcanzado.' } 
 });
 
-app.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+// Rate limiting general para API
+app.use('/api/', rateLimit({ 
+    windowMs: 15 * 60 * 1000, 
+    max: isTestEnvironment ? 10000 : 100 // Límite muy alto para tests
+}));
 
 // --- Middlewares Generales ---
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// --- Middlewares de Sanitización ---
+app.use(sanitizeRequestBody);
+app.use(sanitizeQueryParams);
+
+// --- Middleware de Logging ---
+app.use(requestLogger);
 
 // --- Configuración de la Base de Datos ---
 const pool = new Pool({
@@ -109,10 +138,11 @@ const pool = new Pool({
 });
 
 pool.query('SELECT NOW()')
-    .then(() => logger.info('✅ Conexión a PostgreSQL exitosa'))
+    .then(() => logger.info('Conexión a PostgreSQL exitosa'))
     .catch(err => {
-        logger.error('❌ Error conectando a PostgreSQL', { error: err.message });
-        process.exit(1);
+        logger.error('Error conectando a PostgreSQL', { error: err.message });
+        logger.warn('Continuando en modo de desarrollo sin base de datos...');
+        // No salir del proceso, continuar en modo desarrollo
     });
 
 // --- Configuración de Quejas ---
@@ -230,6 +260,50 @@ function generarFolio() {
 }
 
 // --- RUTAS DEL SERVIDOR ---
+// --- Endpoint de Salud ---
+app.get('/health', async (req, res) => {
+    try {
+        const healthCheck = {
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            environment: NODE_ENV,
+            version: '6.4.0',
+            services: {
+                database: 'unknown',
+                memory: {
+                    used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                    total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+                    unit: 'MB'
+                }
+            }
+        };
+
+        // Verificar conexión a base de datos
+        try {
+            await pool.query('SELECT 1');
+            healthCheck.services.database = 'connected';
+        } catch (dbError) {
+            healthCheck.services.database = 'disconnected';
+            healthCheck.status = 'degraded';
+            healthCheck.errors = {
+                database: dbError.message
+            };
+        }
+
+        const statusCode = healthCheck.status === 'healthy' ? 200 : 503;
+        res.status(statusCode).json(healthCheck);
+
+    } catch (error) {
+        logger.error('Error en health check:', error);
+        res.status(500).json({
+            status: 'unhealthy',
+            timestamp: new Date().toISOString(),
+            error: 'Internal server error'
+        });
+    }
+});
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -304,7 +378,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
 // ENVÍO DE QUEJA CORREGIDO
 app.post('/enviar-queja', quejaLimiter, async (req, res) => {
-    console.log('🔍 DEBUG: Recibiendo queja:', req.body);
+    logger.debug('Recibiendo queja:', req.body);
     
     try {
         const { tipo } = req.body;
@@ -323,7 +397,7 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
         
         if (error) {
             const errores = error.details.map(d => d.message).join(', ');
-            console.log('🔍 DEBUG: Error de validación:', errores);
+            logger.debug('Error de validación:', errores);
             return res.status(400).json({ 
                 success: false, 
                 error: `Datos inválidos: ${errores}` 
@@ -339,7 +413,7 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
         }
 
         const nuevoFolio = generarFolio();
-        console.log('🔍 DEBUG: Folio generado:', nuevoFolio);
+        logger.debug('Folio generado:', nuevoFolio);
 
         // Conversión de horas a timestamps
         const today = new Date().toISOString().split('T')[0];
@@ -349,7 +423,7 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
             if (detalles[field] && detalles[field] !== '') {
                 if (detalles[field].match(/^\d{1,2}:\d{2}$/)) {
                     detalles[field] = `${today} ${detalles[field]}:00`;
-                    console.log(`🔍 DEBUG: Convertido ${field}: ${detalles[field]}`);
+                    logger.debug(`Convertido ${field}: ${detalles[field]}`);
                 }
             }
         });
@@ -373,18 +447,18 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
             ...specificFields.map(field => detalles[field] || null)
         ];
 
-        console.log('🔍 DEBUG: Campos:', allFieldNames);
-        console.log('🔍 DEBUG: Valores:', allValues);
+        logger.debug('Campos:', allFieldNames);
+        logger.debug('Valores:', allValues);
 
         const queryFields = allFieldNames.join(', ');
         const queryValuePlaceholders = allFieldNames.map((_, i) => `$${i + 1}`).join(', ');
         const query = `INSERT INTO ${config.tableName} (${queryFields}) VALUES (${queryValuePlaceholders}) RETURNING id;`;
         
-        console.log('🔍 DEBUG: Query SQL:', query);
+        logger.debug('Query SQL:', query);
         
         const result = await pool.query(query, allValues);
         
-        logger.info(`Queja registrada exitosamente`, { 
+        logger.info('Queja registrada exitosamente', { 
             folio: nuevoFolio, 
             tabla: config.tableName, 
             id: result.rows[0].id,
@@ -393,12 +467,12 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
         
         res.status(201).json({ 
             success: true, 
-            message: "¡Queja registrada con éxito!", 
+            message: '¡Queja registrada con éxito!', 
             folio: nuevoFolio 
         });
         
     } catch (error) {
-        console.error('🔍 DEBUG: Error completo:', error);
+        logger.error('Error completo:', error);
         logger.error('Error al procesar la queja:', { 
             error: error.message, 
             stack: error.stack,
@@ -416,17 +490,28 @@ app.post('/enviar-queja', quejaLimiter, async (req, res) => {
 // OBTENER QUEJAS
 app.get('/api/quejas', authenticateToken, async (req, res) => {
     try {
-        const { page = 1, limit = 50, estado = 'Pendiente' } = req.query;
+        const { page = 1, limit = 50, estado } = req.query;
         const pageNum = parseInt(page, 10);
         const limitNum = Math.min(parseInt(limit, 10), 100);
         const offset = (pageNum - 1) * limitNum;
 
         // Usar consulta directa a las tablas
         const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
-        const queries = tableNames.map(tableName => 
-            pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} WHERE estado_queja = $1 ORDER BY fecha_creacion DESC LIMIT $2 OFFSET $3`, 
-            [estado, limitNum, offset])
-        );
+        
+        let queries;
+        if (estado) {
+            // Filtrar por estado específico
+            queries = tableNames.map(tableName => 
+                pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} WHERE estado_queja = $1 ORDER BY fecha_creacion DESC LIMIT $2 OFFSET $3`, 
+                [estado, limitNum, offset])
+            );
+        } else {
+            // Obtener todas las quejas sin filtrar por estado
+            queries = tableNames.map(tableName => 
+                pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} ORDER BY fecha_creacion DESC LIMIT $1 OFFSET $2`, 
+                [limitNum, offset])
+            );
+        }
 
         const results = await Promise.all(queries);
         const allQuejas = results.flatMap(result => result.rows);
@@ -435,7 +520,7 @@ app.get('/api/quejas', authenticateToken, async (req, res) => {
 
         res.status(200).json({
             success: true,
-            data: allQuejas,
+            data: sanitizeForFrontend(allQuejas),
             pagination: { page: pageNum, limit: limitNum, total: allQuejas.length }
         });
 
@@ -445,20 +530,374 @@ app.get('/api/quejas', authenticateToken, async (req, res) => {
     }
 });
 
+// GENERAR PDF DE QUEJA
+app.get('/api/queja/pdf/:folio', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
+    const { folio } = req.params;
+    
+    try {
+        // Buscar la queja en todas las tablas
+        const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
+        let queja = null;
+        let tablaOrigen = null;
+        
+        for (const tableName of tableNames) {
+            const result = await pool.query(`SELECT * FROM ${tableName} WHERE folio = $1`, [folio]);
+            if (result.rows.length > 0) {
+                queja = result.rows[0];
+                tablaOrigen = tableName;
+                break;
+            }
+        }
+        
+        if (!queja) {
+            return res.status(404).json({ success: false, error: 'Queja no encontrada' });
+        }
+        
+        // Buscar la resolución
+        const resolucionResult = await pool.query(
+            'SELECT * FROM resoluciones WHERE folio_queja = $1 ORDER BY fecha_resolucion DESC LIMIT 1',
+            [folio]
+        );
+        
+        const resolucion = resolucionResult.rows[0];
+        if (!resolucion) {
+            logger.warn('Intento de generar PDF sin resolución', { folio, ip: req.ip });
+            return res.status(404).json({ success: false, error: 'No se encontró resolución para esta queja' });
+        }
+        
+        // Preparar datos para el template
+        const templateData = {
+            folio: queja.folio,
+            numero_empleado: queja.numero_empleado,
+            empresa: queja.empresa,
+            tipo: queja.tipo,
+            fecha_creacion: new Date(queja.fecha_creacion).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }),
+            fechaReporte: new Date().toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }),
+            responsable: resolucion.responsable,
+            estado: queja.estado_queja,
+            procedencia: resolucion.procedencia,
+            procedencia_class: resolucion.procedencia === 'Procedió' ? 'procedio' : 'no-procedio',
+            resolucion: resolucion.texto_resolucion,
+            ruta: queja.ruta || null,
+            numero_unidad: queja.numero_unidad || null,
+            colonia: queja.colonia || null,
+            turno: queja.turno || null,
+            detalles_retraso: queja.detalles_retraso || null,
+            detalles_maltrato: queja.detalles_maltrato || null,
+            detalles_inseguridad: queja.detalles_inseguridad || null,
+            detalles_malestado: queja.detalles_malestado || null,
+            detalles_otro: queja.detalles_otro || null
+        };
+        
+        // Log de datos para debugging
+        logger.info('Datos del template:', { 
+            folio: templateData.folio,
+            responsable: templateData.responsable,
+            procedencia: templateData.procedencia,
+            procedencia_class: templateData.procedencia_class,
+            hasResolucion: !!templateData.resolucion,
+            hasDetalles: {
+                retraso: !!templateData.detalles_retraso,
+                maltrato: !!templateData.detalles_maltrato,
+                inseguridad: !!templateData.detalles_inseguridad,
+                malestado: !!templateData.detalles_malestado,
+                otro: !!templateData.detalles_otro
+            }
+        });
+        
+                // Leer el template HTML
+                const templatePath = path.join(__dirname, 'public', 'templates', 'reporte-queja.html');
+                    
+        let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
+        
+        // Reemplazar variables en el template (simple template engine)
+        logger.info('Iniciando procesamiento del template...');
+        for (const [key, value] of Object.entries(templateData)) {
+            const regex = new RegExp(`{{${key}}}`, 'g');
+            const originalLength = htmlTemplate.length;
+            htmlTemplate = htmlTemplate.replace(regex, value || '');
+            const replaced = originalLength !== htmlTemplate.length;
+            if (replaced) {
+                logger.info(`Variable ${key} reemplazada:`, { value: value || 'null/undefined' });
+            }
+        }
+        
+        // Manejar condicionales {{#if}}
+        logger.info('Procesando condicionales...');
+        htmlTemplate = htmlTemplate.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
+            const hasCondition = !!templateData[condition];
+            logger.info(`Condicional ${condition}:`, { hasCondition, contentLength: content.length });
+            return hasCondition ? content : '';
+        });
+        
+        // Verificar que no queden variables sin reemplazar
+        const remainingVariables = htmlTemplate.match(/\{\{[^}]+\}\}/g);
+        if (remainingVariables) {
+            logger.warn('Variables sin reemplazar:', remainingVariables);
+        } else {
+            logger.info('Todas las variables fueron reemplazadas correctamente');
+        }
+        
+                // Generar PDF con Puppeteer (configuración simplificada)
+                logger.info('Iniciando Puppeteer...');
+                const browser = await puppeteer.launch({
+                    headless: true,
+                    args: [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--single-process',
+                        '--disable-gpu',
+                        '--disable-background-timer-throttling',
+                        '--disable-backgrounding-occluded-windows',
+                        '--disable-renderer-backgrounding',
+                        '--disable-features=TranslateUI',
+                        '--disable-ipc-flooding-protection',
+                        '--memory-pressure-off',
+                        '--max_old_space_size=4096'
+                    ],
+                    timeout: 30000,
+                    protocolTimeout: 30000
+                });
+                
+                logger.info('Creando nueva página...');
+                const page = await browser.newPage();
+                
+                // Configurar viewport para consistencia
+                logger.info('Configurando viewport...');
+                await page.setViewport({ 
+                    width: 1200, 
+                    height: 800,
+                    deviceScaleFactor: 1
+                });
+                
+                // Configurar cache y recursos
+                await page.setCacheEnabled(false);
+                await page.setJavaScriptEnabled(true);
+                
+                // Cargar contenido y esperar a que todo esté listo
+                logger.info('Cargando contenido HTML...');
+                await page.setContent(htmlTemplate, { 
+                    waitUntil: 'domcontentloaded',
+                    timeout: 30000
+                });
+                
+                // Esperar un poco más para asegurar que todo se renderice
+                logger.info('Esperando renderizado adicional...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                logger.info('Generando PDF...');
+                const pdfBuffer = await page.pdf({
+                    format: 'A4',
+                    printBackground: true,
+                    preferCSSPageSize: false,
+                    margin: {
+                        top: '20mm',
+                        right: '15mm',
+                        bottom: '20mm',
+                        left: '15mm'
+                    },
+                    timeout: 30000,
+                    displayHeaderFooter: false,
+                    scale: 0.8
+                });
+                
+                logger.info('PDF generado exitosamente', { 
+                    bufferSize: pdfBuffer.length,
+                    bufferSizeKB: Math.round(pdfBuffer.length / 1024),
+                    isBuffer: Buffer.isBuffer(pdfBuffer),
+                    bufferType: typeof pdfBuffer,
+                    firstBytes: pdfBuffer.slice(0, 10).toString('hex')
+                });
+                
+                await browser.close();
+        
+                // Enviar PDF como respuesta con headers optimizados
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `attachment; filename="reporte-queja-${folio}.pdf"`);
+                res.setHeader('Content-Length', pdfBuffer.length);
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+                res.setHeader('Accept-Ranges', 'bytes');
+                res.setHeader('Content-Transfer-Encoding', 'binary');
+                
+                // Asegurar que sea un Buffer válido
+                const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+                res.send(buffer);
+        
+        logger.info('PDF generado exitosamente', { folio, responsable: req.user.username, ip: req.ip });
+        
+    } catch (error) {
+        logger.error('Error al generar PDF:', { 
+            error: error.message, 
+            stack: error.stack,
+            folio, 
+            ip: req.ip 
+        });
+        
+        // Cerrar browser si está abierto
+        try {
+            if (browser) {
+                await browser.close();
+            }
+        } catch (closeError) {
+            logger.warn('Error al cerrar browser:', closeError.message);
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error al generar el reporte PDF',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// VISUALIZAR PDF DE QUEJA (sin descarga)
+app.get('/api/queja/view/:folio', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
+    const { folio } = req.params;
+    
+    try {
+        // Buscar la queja en todas las tablas
+        const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
+        let queja = null;
+        let tablaOrigen = null;
+        
+        for (const tableName of tableNames) {
+            const result = await pool.query(`SELECT * FROM ${tableName} WHERE folio = $1`, [folio]);
+            if (result.rows.length > 0) {
+                queja = result.rows[0];
+                tablaOrigen = tableName;
+                break;
+            }
+        }
+        
+        if (!queja) {
+            logger.warn('Intento de visualizar PDF para queja no encontrada', { folio, ip: req.ip });
+            return res.status(404).json({ success: false, error: 'Queja no encontrada' });
+        }
+        
+        // Buscar la resolución
+        const resolucionResult = await pool.query(
+            'SELECT * FROM resoluciones WHERE folio_queja = $1 ORDER BY fecha_resolucion DESC LIMIT 1',
+            [folio]
+        );
+        
+        const resolucion = resolucionResult.rows[0];
+        if (!resolucion) {
+            logger.warn('Intento de visualizar PDF sin resolución', { folio, ip: req.ip });
+            return res.status(404).json({ success: false, error: 'No se encontró resolución para esta queja' });
+        }
+        
+        // Preparar datos para el template
+        const templateData = {
+            folio: queja.folio,
+            numero_empleado: queja.numero_empleado,
+            empresa: queja.empresa,
+            tipo: queja.tipo,
+            fecha_creacion: new Date(queja.fecha_creacion).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }),
+            fechaReporte: new Date().toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }),
+            responsable: resolucion.responsable,
+            estado: queja.estado_queja,
+            procedencia: resolucion.procedencia,
+            procedencia_class: resolucion.procedencia === 'Procedió' ? 'procedio' : 'no-procedio',
+            resolucion: resolucion.texto_resolucion,
+            ruta: queja.ruta || null,
+            numero_unidad: queja.numero_unidad || null,
+            colonia: queja.colonia || null,
+            turno: queja.turno || null,
+            detalles_retraso: queja.detalles_retraso || null,
+            detalles_maltrato: queja.detalles_maltrato || null,
+            detalles_inseguridad: queja.detalles_inseguridad || null,
+            detalles_malestado: queja.detalles_malestado || null,
+            detalles_otro: queja.detalles_otro || null
+        };
+        
+        // Leer el template HTML
+        const templatePath = path.join(__dirname, 'public', 'templates', 'reporte-queja.html');
+        let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
+        
+        // Reemplazar variables en el template
+        for (const [key, value] of Object.entries(templateData)) {
+            const regex = new RegExp(`{{${key}}}`, 'g');
+            htmlTemplate = htmlTemplate.replace(regex, value || '');
+        }
+        
+        // Manejar condicionales {{#if}}
+        htmlTemplate = htmlTemplate.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
+            return templateData[condition] ? content : '';
+        });
+        
+        // Enviar HTML para visualización
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(htmlTemplate);
+        
+        logger.info('HTML de queja enviado para visualización', { folio, responsable: req.user.username, ip: req.ip });
+        
+    } catch (error) {
+        logger.error('Error al generar HTML de queja:', { 
+            error: error.message, 
+            stack: error.stack,
+            folio, 
+            ip: req.ip 
+        });
+        
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error al generar el reporte HTML',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
 // RESOLVER QUEJA
 app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
     const client = await pool.connect();
     
     try {
-        const { id, tabla_origen, folio, resolucion, estado = 'Revisada' } = req.body;
+        const { id, tabla_origen, folio, resolucion, procedencia, estado = 'Revisada' } = req.body;
         const responsable = req.user.username;
 
-        if (!id || !tabla_origen || !folio || !resolucion) {
+        if (!id || !tabla_origen || !folio || !resolucion || !procedencia) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Faltan datos requeridos: id, tabla_origen, folio, resolucion' 
+                error: 'Faltan datos requeridos: id, tabla_origen, folio, resolucion, procedencia' 
             });
         }
+
+        // Validar que procedencia sea válida
+        if (!['Procedio', 'No Procedio', 'Procedió', 'No Procedió'].includes(procedencia)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Procedencia debe ser "Procedio" o "No Procedio"' 
+            });
+        }
+        
+        // Normalizar procedencia para la base de datos
+        const procedenciaNormalizada = procedencia.includes('Procedio') ? 'Procedió' : 'No Procedió';
 
         if (!ALLOWED_TABLES[tabla_origen]) {
             return res.status(400).json({ 
@@ -469,7 +908,7 @@ app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervi
 
         await client.query('BEGIN');
 
-        const checkQuery = `SELECT id, folio FROM ${tabla_origen} WHERE id = $1 AND folio = $2`;
+        const checkQuery = `SELECT id, folio, estado_queja FROM ${tabla_origen} WHERE id = $1 AND folio = $2`;
         const checkResult = await client.query(checkQuery, [id, folio]);
         
         if (checkResult.rows.length === 0) {
@@ -479,16 +918,25 @@ app.put('/api/queja/resolver', authenticateToken, requireRole(['admin', 'supervi
                 error: 'Queja no encontrada.' 
             });
         }
+        
+        // Verificar que la queja esté pendiente
+        if (checkResult.rows[0].estado_queja !== 'Pendiente') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ 
+                success: false, 
+                error: `La queja ya ha sido procesada. Estado actual: ${checkResult.rows[0].estado_queja}` 
+            });
+        }
 
         const updateQuery = `UPDATE ${tabla_origen} SET estado_queja = $1 WHERE id = $2`;
         await client.query(updateQuery, [estado, id]);
 
-        const insertQuery = `INSERT INTO resoluciones (folio_queja, texto_resolucion, responsable) VALUES ($1, $2, $3)`;
-        await client.query(insertQuery, [folio, resolucion, responsable]);
+        const insertQuery = 'INSERT INTO resoluciones (folio_queja, texto_resolucion, responsable, procedencia) VALUES ($1, $2, $3, $4)';
+        await client.query(insertQuery, [folio, resolucion, responsable, procedenciaNormalizada]);
 
         await client.query('COMMIT');
         
-        logger.info(`Queja resuelta exitosamente`, { folio, responsable, estado, ip: req.ip });
+        logger.info('Queja resuelta exitosamente', { folio, responsable, estado, procedencia, ip: req.ip });
         res.status(200).json({ 
             success: true, 
             message: 'Queja resuelta y registrada exitosamente.' 
@@ -524,19 +972,19 @@ app.get('/health', (req, res) => {
     });
 });
 
-app.use((req, res, next) => {
+app.use((req, res, _next) => {
     logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl}`);
-    res.status(404).json({ success: false, error: `Ruta no encontrada` });
+    res.status(404).json({ success: false, error: 'Ruta no encontrada' });
 });
 
-app.use((error, req, res, next) => {
+app.use((error, req, res, _next) => {
     logger.error('ERROR NO MANEJADO:', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, error: 'Error inesperado.' });
 });
 
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
-    logger.info(`🚀 Servidor de Quejas v6.4 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
+    logger.info(`Servidor de Quejas v6.4 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
 });
 
 const gracefulShutdown = (signal) => {
@@ -550,9 +998,13 @@ const gracefulShutdown = (signal) => {
     });
 };
 
+// --- Middlewares de Manejo de Errores (deben ir al final) ---
+app.use(notFoundHandler);
+app.use(errorHandler);
+
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
     logger.error('Promesa rechazada no manejada:', { reason });
 });
 process.on('uncaughtException', (error) => {
