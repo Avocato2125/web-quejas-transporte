@@ -576,12 +576,14 @@ app.get('/api/queja/pdf/:folio', authenticateToken, requireRole(['admin', 'super
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: 'America/Mexico_City'
             }),
             fechaReporte: new Date().toLocaleDateString('es-MX', {
                 year: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                day: 'numeric',
+                timeZone: 'America/Mexico_City'
             }),
             responsable: resolucion.responsable,
             estado: queja.estado_queja,
@@ -813,12 +815,14 @@ app.get('/api/queja/view/:folio', authenticateToken, requireRole(['admin', 'supe
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: 'America/Mexico_City'
             }),
             fechaReporte: new Date().toLocaleDateString('es-MX', {
                 year: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                day: 'numeric',
+                timeZone: 'America/Mexico_City'
             }),
             responsable: resolucion.responsable,
             estado: queja.estado_queja,
