@@ -360,15 +360,27 @@
                 const folioMatch = queja.folio.match(/QJ-(\d{4})(\d{2})(\d{2})-/);
                 if (folioMatch) {
                     const [, year, month, day] = folioMatch;
+                    // Solo usar la fecha, sin hora específica
                     fechaEncontrada = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                 }
             }
             
             if (fechaEncontrada) {
-                fechaFormateada = fechaEncontrada.toLocaleString('es-MX', { 
-                    dateStyle: 'medium', 
-                    timeStyle: 'short' 
-                });
+                // Verificar si la fecha tiene hora válida (no es medianoche)
+                const tieneHora = fechaEncontrada.getHours() !== 0 || fechaEncontrada.getMinutes() !== 0;
+                
+                if (tieneHora) {
+                    // Mostrar fecha y hora si tiene hora válida
+                    fechaFormateada = fechaEncontrada.toLocaleString('es-MX', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short' 
+                    });
+                } else {
+                    // Solo mostrar fecha si no tiene hora válida
+                    fechaFormateada = fechaEncontrada.toLocaleDateString('es-MX', { 
+                        dateStyle: 'medium'
+                    });
+                }
             }
             
             
