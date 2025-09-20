@@ -358,10 +358,17 @@
             header.appendChild(fechaElement);
             
             const body = createSafeElement('div', '', { class: 'tarjeta-body' });
-            const tipo = createSafeElement('p', `<strong>Tipo:</strong> ${queja.tipo || 'N/A'}`, {});
-            const empleado = createSafeElement('p', `<strong>Empleado:</strong> ${queja.numero_empleado || 'N/A'}`, {});
-            const empresa = createSafeElement('p', `<strong>Empresa:</strong> ${queja.empresa || 'N/A'}`, {});
-            const estado = createSafeElement('p', `<strong>Estado:</strong> ${queja.estado_queja || 'Pendiente'}`, {});
+            const tipo = createSafeElement('p', '', {});
+            setSafeContent(tipo, `<strong>Tipo:</strong> ${queja.tipo || 'N/A'}`, true);
+            
+            const empleado = createSafeElement('p', '', {});
+            setSafeContent(empleado, `<strong>Empleado:</strong> ${queja.numero_empleado || 'N/A'}`, true);
+            
+            const empresa = createSafeElement('p', '', {});
+            setSafeContent(empresa, `<strong>Empresa:</strong> ${queja.empresa || 'N/A'}`, true);
+            
+            const estado = createSafeElement('p', '', {});
+            setSafeContent(estado, `<strong>Estado:</strong> ${queja.estado_queja || 'Pendiente'}`, true);
             
             body.appendChild(tipo);
             body.appendChild(empleado);
