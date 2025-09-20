@@ -335,9 +335,16 @@
             tarjeta.dataset.tabla = queja.tabla_origen;
             // Manejo robusto de fechas
             let fechaFormateada = 'Fecha no disponible';
+            console.log('Debug fecha para folio', queja.folio, ':', {
+                fecha_creacion: queja.fecha_creacion,
+                tipo: typeof queja.fecha_creacion,
+                queja_completa: queja
+            });
+            
             if (queja.fecha_creacion) {
                 try {
                     const fecha = new Date(queja.fecha_creacion);
+                    console.log('Fecha parseada:', fecha, 'isValid:', !isNaN(fecha.getTime()));
                     if (!isNaN(fecha.getTime())) {
                         fechaFormateada = fecha.toLocaleString('es-MX', { 
                             dateStyle: 'medium', 
