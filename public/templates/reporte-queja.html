@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Queja - {{folio}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.4;
+            color: #333;
+            background: white;
+            font-size: 12px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: #1E3A8A;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            font-size: 14px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1E3A8A;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #3B82F6;
+            padding-bottom: 5px;
+        }
+        
+        .info-grid {
+            display: table;
+            width: 100%;
+        }
+        
+        .info-row {
+            display: table-row;
+        }
+        
+        .info-label {
+            display: table-cell;
+            font-weight: bold;
+            padding: 5px 10px 5px 0;
+            width: 150px;
+            vertical-align: top;
+        }
+        
+        .info-value {
+            display: table-cell;
+            padding: 5px 0;
+            vertical-align: top;
+        }
+        
+        .resolution-box {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .resolution-box strong {
+            color: #1E3A8A;
+        }
+        
+        .procedencia {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        .procedencia.procedio {
+            color: #059669;
+        }
+        
+        .procedencia.no-procedio {
+            color: #dc2626;
+        }
+        
+        .signatures {
+            margin-top: 40px;
+            display: table;
+            width: 100%;
+        }
+        
+        .signature {
+            display: table-cell;
+            width: 50%;
+            text-align: center;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #666;
+            padding-top: 5px;
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Sistema de Quejas de Transporte</h1>
+            <p>Reporte de Queja</p>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Información del Reporte</h2>
+            <div class="info-grid">
+                <div class="info-row">
+                    <div class="info-label">Folio:</div>
+                    <div class="info-value">{{folio}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Fecha de Creación:</div>
+                    <div class="info-value">{{fecha_creacion}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Fecha de Reporte:</div>
+                    <div class="info-value">{{fechaReporte}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Responsable:</div>
+                    <div class="info-value">{{responsable}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Estado:</div>
+                    <div class="info-value">{{estado}}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Detalles de la Queja</h2>
+            <div class="info-grid">
+                <div class="info-row">
+                    <div class="info-label">No. Empleado:</div>
+                    <div class="info-value">{{numero_empleado}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Empresa:</div>
+                    <div class="info-value">{{empresa}}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Tipo:</div>
+                    <div class="info-value">{{tipo}}</div>
+                </div>
+                {{#if ruta}}
+                <div class="info-row">
+                    <div class="info-label">Ruta:</div>
+                    <div class="info-value">{{ruta}}</div>
+                </div>
+                {{/if}}
+                {{#if numero_unidad}}
+                <div class="info-row">
+                    <div class="info-label">No. Unidad:</div>
+                    <div class="info-value">{{numero_unidad}}</div>
+                </div>
+                {{/if}}
+                {{#if colonia}}
+                <div class="info-row">
+                    <div class="info-label">Colonia:</div>
+                    <div class="info-value">{{colonia}}</div>
+                </div>
+                {{/if}}
+                {{#if turno}}
+                <div class="info-row">
+                    <div class="info-label">Turno:</div>
+                    <div class="info-value">{{turno}}</div>
+                </div>
+                {{/if}}
+                {{#if detalles_retraso}}
+                <div class="info-row">
+                    <div class="info-label">Detalles de Retraso:</div>
+                    <div class="info-value">{{detalles_retraso}}</div>
+                </div>
+                {{/if}}
+                {{#if detalles_maltrato}}
+                <div class="info-row">
+                    <div class="info-label">Detalles de Mal Trato:</div>
+                    <div class="info-value">{{detalles_maltrato}}</div>
+                </div>
+                {{/if}}
+                {{#if detalles_inseguridad}}
+                <div class="info-row">
+                    <div class="info-label">Detalles de Inseguridad:</div>
+                    <div class="info-value">{{detalles_inseguridad}}</div>
+                </div>
+                {{/if}}
+                {{#if detalles_malestado}}
+                <div class="info-row">
+                    <div class="info-label">Detalles (Mal Estado):</div>
+                    <div class="info-value">{{detalles_malestado}}</div>
+                </div>
+                {{/if}}
+                {{#if detalles_otro}}
+                <div class="info-row">
+                    <div class="info-label">Detalles (Otro):</div>
+                    <div class="info-value">{{detalles_otro}}</div>
+                </div>
+                {{/if}}
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Resolución</h2>
+            <div class="resolution-box">
+                <strong>Resolución:</strong><br>
+                {{resolucion}}
+                <div class="procedencia {{procedencia_class}}">
+                    <strong>Procedencia:</strong> {{procedencia}}
+                </div>
+            </div>
+        </div>
+
+        <div class="signatures">
+            <div class="signature">
+                <div class="signature-line">Firma del Responsable</div>
+            </div>
+            <div class="signature">
+                <div class="signature-line">Firma del Supervisor</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Sistema de Quejas de Transporte v6.4 | Generado el {{fechaReporte}}
+        </div>
+    </div>
+</body>
+</html>
