@@ -333,53 +333,67 @@
             tarjeta.className = queja.estado_queja === 'Revisada' ? 'queja-tarjeta queja-respondida' : 'queja-tarjeta';
             tarjeta.dataset.id = queja.id;
             tarjeta.dataset.tabla = queja.tabla_origen;
-            // Manejo robusto de fechas
+            // Manejo robusto de fechas - SIEMPRE respetar la hora exacta de la BD
             let fechaFormateada = 'Fecha no disponible';
             
-            // Intentar múltiples campos de fecha
-            const camposFecha = ['fecha_creacion', 'fecha_actualizacion', 'created_at', 'updated_at'];
-            let fechaEncontrada = null;
+            // Priorizar fecha_creacion de la base de datos (hora exacta)
+            if (queja.fecha_creacion) {
+                console.log('Debug fecha_creacion para folio', queja.folio, ':', {
+                    valor: queja.fecha_creacion,
+                    tipo: typeof queja.fecha_creacion,
+                    queja_completa: queja
+                });
+                
+                try {
+                    const fecha = new Date(queja.fecha_creacion);
+                    console.log('Fecha parseada:', fecha, 'isValid:', !isNaN(fecha.getTime()));
+                    
+                    if (!isNaN(fecha.getTime())) {
+                        // SIEMPRE mostrar fecha y hora exacta de la BD
+                        fechaFormateada = fecha.toLocaleString('es-MX', { 
+                            dateStyle: 'medium', 
+                            timeStyle: 'short' 
+                        });
+                        console.log('Fecha formateada:', fechaFormateada);
+                    }
+                } catch (error) {
+                    console.warn('Error parseando fecha_creacion:', queja.fecha_creacion, error);
+                }
+            } else {
+                console.log('No hay fecha_creacion para folio', queja.folio, ':', queja);
+            }
             
-            for (const campo of camposFecha) {
-                if (queja[campo]) {
-                    try {
-                        const fecha = new Date(queja[campo]);
-                        if (!isNaN(fecha.getTime())) {
-                            fechaEncontrada = fecha;
-                            break;
+            // Solo si NO hay fecha_creacion, intentar otros campos
+            if (fechaFormateada === 'Fecha no disponible') {
+                const camposFechaAlternativos = ['fecha_actualizacion', 'created_at', 'updated_at'];
+                
+                for (const campo of camposFechaAlternativos) {
+                    if (queja[campo]) {
+                        try {
+                            const fecha = new Date(queja[campo]);
+                            if (!isNaN(fecha.getTime())) {
+                                fechaFormateada = fecha.toLocaleString('es-MX', { 
+                                    dateStyle: 'medium', 
+                                    timeStyle: 'short' 
+                                });
+                                break;
+                            }
+                        } catch (error) {
+                            console.warn(`Error parseando ${campo}:`, queja[campo], error);
                         }
-                    } catch (error) {
-                        console.warn(`Error parseando ${campo}:`, queja[campo], error);
                     }
                 }
             }
             
-            // Si no hay fecha en la base de datos, intentar extraer del folio
-            if (!fechaEncontrada && queja.folio) {
-                // Los folios tienen formato: QJ-YYYYMMDD-XXXXXX
+            // Solo como último recurso, extraer fecha del folio (sin hora)
+            if (fechaFormateada === 'Fecha no disponible' && queja.folio) {
                 const folioMatch = queja.folio.match(/QJ-(\d{4})(\d{2})(\d{2})-/);
                 if (folioMatch) {
                     const [, year, month, day] = folioMatch;
-                    // Solo usar la fecha, sin hora específica
-                    fechaEncontrada = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                }
-            }
-            
-            if (fechaEncontrada) {
-                // Verificar si la fecha tiene hora válida (no es medianoche)
-                const tieneHora = fechaEncontrada.getHours() !== 0 || fechaEncontrada.getMinutes() !== 0;
-                
-                if (tieneHora) {
-                    // Mostrar fecha y hora si tiene hora válida
-                    fechaFormateada = fechaEncontrada.toLocaleString('es-MX', { 
-                        dateStyle: 'medium', 
-                        timeStyle: 'short' 
-                    });
-                } else {
-                    // Solo mostrar fecha si no tiene hora válida
-                    fechaFormateada = fechaEncontrada.toLocaleDateString('es-MX', { 
+                    const fechaFolio = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                    fechaFormateada = fechaFolio.toLocaleDateString('es-MX', { 
                         dateStyle: 'medium'
-                    });
+                    }) + ' (hora no disponible)';
                 }
             }
             
