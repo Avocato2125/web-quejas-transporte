@@ -361,13 +361,12 @@
                     console.log('Local String:', fecha.toLocaleString());
                     
                     if (!isNaN(fecha.getTime())) {
-                        // SIEMPRE mostrar fecha y hora exacta de la BD en hora local de México
-                        fechaFormateada = fecha.toLocaleString('es-MX', { 
-                            dateStyle: 'medium', 
-                            timeStyle: 'short',
+                        // Mostrar solo la fecha (sin hora) en el dashboard
+                        fechaFormateada = fecha.toLocaleDateString('es-MX', { 
+                            dateStyle: 'medium',
                             timeZone: 'America/Mexico_City'
                         });
-                        console.log('Fecha formateada (México):', fechaFormateada);
+                        console.log('Fecha formateada (solo fecha):', fechaFormateada);
                     }
                 } catch (error) {
                     console.warn('Error parseando fecha_creacion:', queja.fecha_creacion, error);
@@ -385,9 +384,8 @@
                         try {
                             const fecha = new Date(queja[campo]);
                             if (!isNaN(fecha.getTime())) {
-                                fechaFormateada = fecha.toLocaleString('es-MX', { 
-                                    dateStyle: 'medium', 
-                                    timeStyle: 'short',
+                                fechaFormateada = fecha.toLocaleDateString('es-MX', { 
+                                    dateStyle: 'medium',
                                     timeZone: 'America/Mexico_City'
                                 });
                                 break;
