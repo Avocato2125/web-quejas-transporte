@@ -146,6 +146,218 @@
         .queja-respondida .tarjeta-folio {
             color: #059669;
         }
+
+        /* ===== RESPONSIVE DESIGN PARA MÓVILES ===== */
+        @media (max-width: 768px) {
+            /* Header responsivo */
+            .header {
+                flex-direction: column;
+                padding: 15px 20px;
+                gap: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.5em;
+                text-align: center;
+                margin-bottom: 10px;
+            }
+            
+            .search-container {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .header > div:last-child {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            #welcomeUser {
+                margin-right: 0 !important;
+                text-align: center;
+            }
+            
+            /* Navegación de tabs responsiva */
+            .tabs-nav {
+                padding: 0 10px;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .tab-btn {
+                padding: 12px 15px;
+                font-size: 0.9em;
+                min-width: max-content;
+            }
+            
+            /* Container principal */
+            .dashboard-container {
+                padding: 10px;
+                margin: 10px auto;
+            }
+            
+            /* Grid de quejas responsivo */
+            .quejas-lista {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            /* Tarjetas de quejas */
+            .queja-tarjeta {
+                padding: 12px 15px;
+            }
+            
+            .tarjeta-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .tarjeta-folio {
+                font-size: 1.1em;
+            }
+            
+            .tarjeta-fecha {
+                font-size: 0.8em;
+                align-self: flex-end;
+            }
+            
+            .tarjeta-body p {
+                font-size: 0.9em;
+                margin: 4px 0;
+            }
+            
+            /* Botones PDF en móvil */
+            .pdf-button-direct,
+            .pdf-button-view {
+                font-size: 0.75em;
+                padding: 8px 10px;
+                margin-top: 6px;
+            }
+            
+            /* Modal responsivo */
+            .modal-content {
+                width: 95%;
+                max-width: none;
+                margin: 10px;
+                max-height: 95vh;
+            }
+            
+            .modal-header {
+                padding: 15px;
+            }
+            
+            .modal-header h2 {
+                font-size: 1.2em;
+            }
+            
+            .modal-body {
+                padding: 15px;
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .detail-item {
+                padding: 8px;
+            }
+            
+            .modal-footer {
+                padding: 15px;
+            }
+            
+            .modal-footer textarea {
+                min-height: 60px;
+                font-size: 0.9em;
+            }
+            
+            .modal-footer button {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+            
+            /* Procedencia responsiva */
+            .procedencia-container {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .procedencia-option {
+                gap: 6px;
+            }
+            
+            .procedencia-option input[type="radio"] {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .procedencia-option label {
+                font-size: 0.9em;
+            }
+        }
+
+        /* ===== TABLETS ===== */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .quejas-lista {
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            }
+            
+            .header {
+                padding: 20px 30px;
+            }
+            
+            .search-container {
+                width: 250px;
+            }
+            
+            .tabs-nav {
+                padding: 0 30px;
+            }
+        }
+
+        /* ===== PANTALLAS MUY PEQUEÑAS ===== */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.3em;
+            }
+            
+            .tab-btn {
+                padding: 10px 12px;
+                font-size: 0.8em;
+            }
+            
+            .queja-tarjeta {
+                padding: 10px 12px;
+            }
+            
+            .tarjeta-folio {
+                font-size: 1em;
+            }
+            
+            .tarjeta-body p {
+                font-size: 0.85em;
+            }
+            
+            .modal-content {
+                width: 98%;
+                margin: 5px;
+            }
+            
+            .modal-header {
+                padding: 12px;
+            }
+            
+            .modal-body {
+                padding: 12px;
+            }
+            
+            .modal-footer {
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
