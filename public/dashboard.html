@@ -335,25 +335,40 @@
             tarjeta.dataset.tabla = queja.tabla_origen;
             // Manejo robusto de fechas
             let fechaFormateada = 'Fecha no disponible';
-            console.log('Debug fecha para folio', queja.folio, ':', {
-                fecha_creacion: queja.fecha_creacion,
-                tipo: typeof queja.fecha_creacion,
-                queja_completa: queja
-            });
             
-            if (queja.fecha_creacion) {
-                try {
-                    const fecha = new Date(queja.fecha_creacion);
-                    console.log('Fecha parseada:', fecha, 'isValid:', !isNaN(fecha.getTime()));
-                    if (!isNaN(fecha.getTime())) {
-                        fechaFormateada = fecha.toLocaleString('es-MX', { 
-                            dateStyle: 'medium', 
-                            timeStyle: 'short' 
-                        });
+            // Intentar múltiples campos de fecha
+            const camposFecha = ['fecha_creacion', 'fecha_actualizacion', 'created_at', 'updated_at'];
+            let fechaEncontrada = null;
+            
+            for (const campo of camposFecha) {
+                if (queja[campo]) {
+                    try {
+                        const fecha = new Date(queja[campo]);
+                        if (!isNaN(fecha.getTime())) {
+                            fechaEncontrada = fecha;
+                            break;
+                        }
+                    } catch (error) {
+                        console.warn(`Error parseando ${campo}:`, queja[campo], error);
                     }
-                } catch (error) {
-                    console.warn('Error formateando fecha:', queja.fecha_creacion, error);
                 }
+            }
+            
+            // Si no hay fecha en la base de datos, intentar extraer del folio
+            if (!fechaEncontrada && queja.folio) {
+                // Los folios tienen formato: QJ-YYYYMMDD-XXXXXX
+                const folioMatch = queja.folio.match(/QJ-(\d{4})(\d{2})(\d{2})-/);
+                if (folioMatch) {
+                    const [, year, month, day] = folioMatch;
+                    fechaEncontrada = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                }
+            }
+            
+            if (fechaEncontrada) {
+                fechaFormateada = fechaEncontrada.toLocaleString('es-MX', { 
+                    dateStyle: 'medium', 
+                    timeStyle: 'short' 
+                });
             }
             
             
