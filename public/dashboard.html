@@ -345,16 +345,29 @@
                 });
                 
                 try {
-                    const fecha = new Date(queja.fecha_creacion);
+                    // Asegurar que parseamos correctamente la fecha ISO
+                    let fecha;
+                    if (typeof queja.fecha_creacion === 'string') {
+                        fecha = new Date(queja.fecha_creacion);
+                    } else if (queja.fecha_creacion instanceof Date) {
+                        fecha = queja.fecha_creacion;
+                    } else {
+                        // Si es un objeto con propiedades de fecha
+                        fecha = new Date(queja.fecha_creacion);
+                    }
+                    
                     console.log('Fecha parseada:', fecha, 'isValid:', !isNaN(fecha.getTime()));
+                    console.log('UTC String:', fecha.toUTCString());
+                    console.log('Local String:', fecha.toLocaleString());
                     
                     if (!isNaN(fecha.getTime())) {
-                        // SIEMPRE mostrar fecha y hora exacta de la BD
+                        // SIEMPRE mostrar fecha y hora exacta de la BD en hora local de México
                         fechaFormateada = fecha.toLocaleString('es-MX', { 
                             dateStyle: 'medium', 
-                            timeStyle: 'short' 
+                            timeStyle: 'short',
+                            timeZone: 'America/Mexico_City'
                         });
-                        console.log('Fecha formateada:', fechaFormateada);
+                        console.log('Fecha formateada (México):', fechaFormateada);
                     }
                 } catch (error) {
                     console.warn('Error parseando fecha_creacion:', queja.fecha_creacion, error);
@@ -374,7 +387,8 @@
                             if (!isNaN(fecha.getTime())) {
                                 fechaFormateada = fecha.toLocaleString('es-MX', { 
                                     dateStyle: 'medium', 
-                                    timeStyle: 'short' 
+                                    timeStyle: 'short',
+                                    timeZone: 'America/Mexico_City'
                                 });
                                 break;
                             }
