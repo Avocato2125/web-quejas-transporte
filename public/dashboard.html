@@ -333,8 +333,21 @@
             tarjeta.className = queja.estado_queja === 'Revisada' ? 'queja-tarjeta queja-respondida' : 'queja-tarjeta';
             tarjeta.dataset.id = queja.id;
             tarjeta.dataset.tabla = queja.tabla_origen;
-            const fecha = new Date(queja.fecha_creacion);
-            const fechaFormateada = fecha.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+            // Manejo robusto de fechas
+            let fechaFormateada = 'Fecha no disponible';
+            if (queja.fecha_creacion) {
+                try {
+                    const fecha = new Date(queja.fecha_creacion);
+                    if (!isNaN(fecha.getTime())) {
+                        fechaFormateada = fecha.toLocaleString('es-MX', { 
+                            dateStyle: 'medium', 
+                            timeStyle: 'short' 
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error formateando fecha:', queja.fecha_creacion, error);
+                }
+            }
             
             
             // Crear elementos de forma segura
@@ -404,7 +417,14 @@
                 if(etiquetas[key] && queja[key] !== null && queja[key] !== '') {
                     let valor = queja[key];
                     if (['hora_programada', 'hora_llegada', 'hora_llegada_planta'].includes(key) && valor) {
-                        valor = new Date(valor).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        try {
+                            const fechaHora = new Date(valor);
+                            if (!isNaN(fechaHora.getTime())) {
+                                valor = fechaHora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+                            }
+                        } catch (error) {
+                            console.warn('Error formateando hora:', valor, error);
+                        }
                     }
                     const item = document.createElement('div');
                     item.className = 'detail-item';
