@@ -1,4 +1,4 @@
-// server.js (Versión 6.4 - CORREGIDO PARA ENVÍO DE QUEJAS)
+// server.js (Versión 6.4 - CORREGIDO)
 
 require('dotenv').config();
 
@@ -9,6 +9,12 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const helmet = require('helmet');
+const { Pool } = require('pg');
+const Joi = require('joi');
+const crypto = require('crypto');
+const winston = require('winston');
+const puppeteer = require('puppeteer');
+const fs = require('fs');
 
 // --- Configuración ---
 const validateEnv = require('./config/env.validation');
@@ -17,7 +23,6 @@ const { mainLogger: logger, securityLogger, auditLogger } = require('./config/lo
 
 // Validar variables de entorno
 const env = validateEnv();
-const fs = require('fs');
 const { sanitizeRequestBody, sanitizeQueryParams, sanitizeForFrontend } = require('./middleware/sanitization');
 const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler');
 const { validateQueja } = require('./middleware/validation');
@@ -28,86 +33,15 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Manejo de señales de terminación
-process.on('SIGTERM', () => {
-    logger.info('Recibida señal SIGTERM. Iniciando apagado graceful...');
-    shutdown();
-});
-
-process.on('SIGINT', () => {
-    logger.info('Recibida señal SIGINT. Iniciando apagado graceful...');
-    shutdown();
-});
-
-// Manejo de errores no capturados
-process.on('uncaughtException', (error) => {
-    logger.error('Error no capturado:', error);
-    shutdown(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Promesa rechazada no manejada:', { reason, promise });
-});
-
-// Función de apagado graceful
-async function shutdown(code = 0) {
-    logger.info('Iniciando proceso de apagado...');
-    
-    // Cerrar servidor HTTP
-    if (server) {
-        await new Promise(resolve => {
-            server.close(resolve);
-        });
-    }
-
-    // Cerrar conexión con la base de datos
-    try {
-        await DatabaseManager.close();
-        logger.info('Conexión a la base de datos cerrada correctamente');
-    } catch (err) {
-        logger.error('Error al cerrar la conexión con la base de datos:', err);
-    }
-
-    // Esperar a que se procesen los logs pendientes
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    process.exit(code);
-}
-
-// Health Check Endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// El logger ya está importado arriba como { mainLogger: logger }
-
-if (NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({ 
-        format: winston.format.combine(winston.format.colorize(), winston.format.simple()) 
-    }));
-}
-
-// Validar variables de entorno requeridas
-const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
-requiredEnvVars.forEach(envVar => { 
-    if (!process.env[envVar]) { 
-        logger.error(`ERROR CRÍTICO: Variable de entorno ${envVar} no definida.`); 
-        process.exit(1); 
-    } 
-});
-
-const JWT_SECRET = process.env.JWT_SECRET;
-const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET;
-
 // --- Middlewares de Seguridad ---
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: ['\'self\''],
-            styleSrc: ['\'self\'', '\'unsafe-inline\'', 'https://fonts.googleapis.com'],
-            fontSrc: ['\'self\'', 'https://fonts.gstatic.com'],
-            scriptSrc: ['\'self\'', '\'unsafe-inline\''],
-            imgSrc: ['\'self\'', 'data:']
+            defaultSrc: [''self''],
+            styleSrc: [''self'', ''unsafe-inline'', 'https://fonts.googleapis.com'],
+            fontSrc: [''self'', 'https://fonts.gstatic.com'],
+            scriptSrc: [''self'', ''unsafe-inline''],
+            imgSrc: [''self'', 'data:']
         }
     },
     xFrameOptions: { action: 'deny' },
@@ -142,18 +76,26 @@ app.use(cors({
 const { configureRateLimiting } = require('./middleware/rateLimiting');
 const { loginLimiter, quejaLimiter, generalLimiter } = configureRateLimiting(logger);
 
-// Los limitadores de velocidad se aplican en los archivos de rutas específicos.
-
 // --- Middlewares Generales ---
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Middlewares de Sanitización ---
+// --- Middlewares de Sanitización y Logging ---
 app.use(sanitizeRequestBody);
 app.use(sanitizeQueryParams);
-
-// --- Middleware de Logging ---
 app.use(requestLogger);
+
+// Validar variables de entorno requeridas
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
+requiredEnvVars.forEach(envVar => { 
+    if (!process.env[envVar]) { 
+        logger.error(`ERROR CRÍTICO: Variable de entorno ${envVar} no definida.`); 
+        process.exit(1); 
+    } 
+});
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET;
 
 // --- Configuración de la Base de Datos ---
 const pool = new Pool({
@@ -166,7 +108,6 @@ pool.query('SELECT NOW()')
     .catch(err => {
         logger.error('Error conectando a PostgreSQL', { error: err.message });
         logger.warn('Continuando en modo de desarrollo sin base de datos...');
-        // No salir del proceso, continuar en modo desarrollo
     });
 
 // --- Configuración de Quejas ---
@@ -214,7 +155,6 @@ const baseQuejaSchema = Joi.object({
     numero_unidad: Joi.string().allow(null, '')
 });
 
-// Validación específica por tipo (simplificada)
 const quejaSchemas = {
     'Retraso': baseQuejaSchema.keys({
         detalles_retraso: Joi.string().allow(null, ''),
@@ -257,6 +197,10 @@ function generarFolio() {
 }
 
 // --- RUTAS DEL SERVIDOR ---
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // --- Endpoint de Salud ---
 app.get('/health', async (req, res) => {
     try {
@@ -276,7 +220,6 @@ app.get('/health', async (req, res) => {
             }
         };
 
-        // Verificar conexión a base de datos
         try {
             await pool.query('SELECT 1');
             healthCheck.services.database = 'connected';
@@ -301,26 +244,6 @@ app.get('/health', async (req, res) => {
     }
 });
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// LOGIN
-
-
-// ENVÍO DE QUEJA CORREGIDO
-
-
-
-
-
-
-
-
-
-
-
-
 // --- RUTAS DE AUTENTICACIÓN ---
 const authRoutes = require('./routes/auth.routes')(pool, logger, loginLimiter, authenticateToken, verifyRefreshToken);
 app.use('/api/auth', authRoutes);
@@ -329,24 +252,16 @@ app.use('/api/auth', authRoutes);
 const quejasRoutes = require('./routes/quejas.routes.js')(pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend, puppeteer, fs, path);
 app.use('/', quejasRoutes);
 
-// --- Rutas de Utilidad ---
-
-
-app.use((req, res, _next) => {
-    logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl}`);
-    res.status(404).json({ success: false, error: 'Ruta no encontrada' });
-});
-
-app.use((error, req, res, _next) => {
-    logger.error('ERROR NO MANEJADO:', { error: error.message, stack: error.stack });
-    res.status(500).json({ success: false, error: 'Error inesperado.' });
-});
+// --- Middlewares de Manejo de Errores (deben ir al final) ---
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
     logger.info(`Servidor de Quejas v6.4 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
 });
 
+// --- Manejo de Señales Graceful Shutdown ---
 const gracefulShutdown = (signal) => {
     logger.info(`Recibida señal ${signal}. Iniciando cierre elegante...`);
     server.close(() => {
@@ -358,16 +273,29 @@ const gracefulShutdown = (signal) => {
     });
 };
 
-// --- Middlewares de Manejo de Errores (deben ir al final) ---
-app.use(notFoundHandler);
-app.use(errorHandler);
-
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('unhandledRejection', (reason, _promise) => {
-    logger.error('Promesa rechazada no manejada:', { reason });
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Promesa rechazada no manejada:', { reason, promise });
 });
+
 process.on('uncaughtException', (error) => {
     logger.error('Excepción no capturada:', { error: error.message, stack: error.stack });
-    process.exit(1);
+    shutdown(1);
 });
+
+async function shutdown(code = 0) {
+    logger.info('Iniciando proceso de apagado...');
+    if (server) {
+        await new Promise(resolve => server.close(resolve));
+    }
+    try {
+        await DatabaseManager.close();
+        logger.info('Conexión a la base de datos cerrada correctamente');
+    } catch (err) {
+        logger.error('Error al cerrar la conexión con la base de datos:', err);
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    process.exit(code);
+}
