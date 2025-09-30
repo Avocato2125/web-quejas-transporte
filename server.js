@@ -270,7 +270,7 @@ const quejaSchemas = {
 };
 
 // --- MIDDLEWARE DE AUTENTICACIÓN ---
-const { authenticateToken, requireRole } = require('./middleware/auth');
+const { authenticateToken, requireRole, verifyRefreshToken } = require('./middleware/auth');
 
 // --- FUNCIÓN PARA GENERAR FOLIO ---
 function generarFolio() {
@@ -348,7 +348,7 @@ app.get('/', (req, res) => {
 
 
 // --- RUTAS DE AUTENTICACIÓN ---
-const authRoutes = require('./routes/auth.routes')(pool, logger, loginLimiter, authenticateToken);
+const authRoutes = require('./routes/auth.routes')(pool, logger, loginLimiter, authenticateToken, verifyRefreshToken);
 app.use('/api/auth', authRoutes);
 
 // --- RUTAS DE QUEJAS ---

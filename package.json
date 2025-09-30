@@ -11,8 +11,6 @@
     "test:unit": "jest --testPathPattern=unit --detectOpenHandles --forceExit",
     "start": "cross-env NODE_ENV=production node server.js",
     "dev": "nodemon server.js",
-    "postinstall": "npm ci --omit=dev",
-    "build": "npm ci --omit=dev",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "db:migrate": "node scripts/migrate.js",
