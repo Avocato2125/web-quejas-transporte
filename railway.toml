@@ -14,11 +14,5 @@ numReplicas = 1
 internal_port = 3000
 auto_deploy = true
 
-[phases]
-setup = [
-  "nodejs_22",
-  "npm-9_x"
-]
-
-[phases.setup.nixpacksConfig]
+[nixpacks]
 nodejs_version = "18.x"
