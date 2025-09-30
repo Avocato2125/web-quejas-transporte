@@ -75,34 +75,8 @@ async function shutdown(code = 0) {
 }
 
 // Health Check Endpoint
-app.get('/health', async (req, res) => {
-    try {
-        // Verificar conexión a la base de datos
-        const dbHealth = await DatabaseManager.healthCheck();
-        
-        if (dbHealth.status === 'healthy') {
-            res.status(200).json({
-                status: 'healthy',
-                environment: NODE_ENV,
-                timestamp: new Date().toISOString(),
-                uptime: process.uptime(),
-                memoryUsage: process.memoryUsage(),
-                database: dbHealth
-            });
-        } else {
-            res.status(503).json({
-                status: 'unhealthy',
-                error: 'Database connection failed',
-                details: dbHealth
-            });
-        }
-    } catch (error) {
-        logger.error('Health check failed:', error);
-        res.status(503).json({
-            status: 'unhealthy',
-            error: 'Service unavailable'
-        });
-    }
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // El logger ya está importado arriba como { mainLogger: logger }
@@ -356,13 +330,7 @@ const quejasRoutes = require('./routes/quejas.routes.js')(pool, logger, quejaLim
 app.use('/', quejasRoutes);
 
 // --- Rutas de Utilidad ---
-app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok', 
-        timestamp: new Date().toISOString(),
-        version: '6.4'  // ← VERSIÓN ACTUALIZADA
-    });
-});
+
 
 app.use((req, res, _next) => {
     logger.warn(`Ruta no encontrada: ${req.method} ${req.originalUrl}`);
