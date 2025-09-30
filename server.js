@@ -28,6 +28,37 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+// Health Check Endpoint
+app.get('/health', async (req, res) => {
+    try {
+        // Verificar conexión a la base de datos
+        const dbHealth = await DatabaseManager.healthCheck();
+        
+        if (dbHealth.status === 'healthy') {
+            res.status(200).json({
+                status: 'healthy',
+                environment: NODE_ENV,
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                memoryUsage: process.memoryUsage(),
+                database: dbHealth
+            });
+        } else {
+            res.status(503).json({
+                status: 'unhealthy',
+                error: 'Database connection failed',
+                details: dbHealth
+            });
+        }
+    } catch (error) {
+        logger.error('Health check failed:', error);
+        res.status(503).json({
+            status: 'unhealthy',
+            error: 'Service unavailable'
+        });
+    }
+});
+
 // El logger ya está importado arriba como { mainLogger: logger }
 
 if (NODE_ENV !== 'production') {
