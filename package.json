@@ -9,8 +9,9 @@
     "test:coverage": "jest --coverage --detectOpenHandles --forceExit",
     "test:integration": "jest --testPathPattern=integration --detectOpenHandles --forceExit",
     "test:unit": "jest --testPathPattern=unit --detectOpenHandles --forceExit",
-    "start": "NODE_ENV=production node server.js",
+    "start": "cross-env NODE_ENV=production node server.js",
     "dev": "nodemon server.js",
+    "postinstall": "npm ci --omit=dev",
     "build": "npm ci --omit=dev",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
@@ -74,6 +75,7 @@
     "cookie": "^0.7.1",
     "cookie-signature": "^1.0.6",
     "cors": "^2.8.5",
+    "cross-env": "^10.1.0",
     "cross-spawn": "^7.0.6",
     "data-uri-to-buffer": "^4.0.1",
     "debug": "^4.4.1",
@@ -303,9 +305,11 @@
     "npm": ">=8.0.0"
   },
   "railway": {
-    "buildCommand": "npm run build",
+    "buildCommand": "npm ci --omit=dev",
     "startCommand": "npm start",
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3
+    "restartPolicyMaxRetries": 3,
+    "healthcheck": "/health",
+    "healthcheckTimeout": 100
   }
 }

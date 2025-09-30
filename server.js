@@ -28,6 +28,52 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+// Manejo de señales de terminación
+process.on('SIGTERM', () => {
+    logger.info('Recibida señal SIGTERM. Iniciando apagado graceful...');
+    shutdown();
+});
+
+process.on('SIGINT', () => {
+    logger.info('Recibida señal SIGINT. Iniciando apagado graceful...');
+    shutdown();
+});
+
+// Manejo de errores no capturados
+process.on('uncaughtException', (error) => {
+    logger.error('Error no capturado:', error);
+    shutdown(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Promesa rechazada no manejada:', { reason, promise });
+});
+
+// Función de apagado graceful
+async function shutdown(code = 0) {
+    logger.info('Iniciando proceso de apagado...');
+    
+    // Cerrar servidor HTTP
+    if (server) {
+        await new Promise(resolve => {
+            server.close(resolve);
+        });
+    }
+
+    // Cerrar conexión con la base de datos
+    try {
+        await DatabaseManager.close();
+        logger.info('Conexión a la base de datos cerrada correctamente');
+    } catch (err) {
+        logger.error('Error al cerrar la conexión con la base de datos:', err);
+    }
+
+    // Esperar a que se procesen los logs pendientes
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    process.exit(code);
+}
+
 // Health Check Endpoint
 app.get('/health', async (req, res) => {
     try {
