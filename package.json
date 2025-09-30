@@ -9,7 +9,7 @@
     "test:coverage": "jest --coverage --detectOpenHandles --forceExit",
     "test:integration": "jest --testPathPattern=integration --detectOpenHandles --forceExit",
     "test:unit": "jest --testPathPattern=unit --detectOpenHandles --forceExit",
-    "start": "cross-env NODE_ENV=production node server.js",
+    "start": "node start.js",
     "dev": "nodemon server.js",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
