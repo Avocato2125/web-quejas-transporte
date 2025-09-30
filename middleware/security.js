@@ -2,7 +2,6 @@
 // MIDDLEWARE DE SEGURIDAD AVANZADA
 // ===========================================
 
-const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 // const crypto = require('crypto'); // No usado actualmente
 const winston = require('winston');
@@ -20,109 +19,22 @@ const securityLogger = winston.createLogger({
 });
 
 // ===========================================
-// RATE LIMITING AVANZADO
-// ===========================================
-
-// Rate limiting para login con IP tracking
-const loginRateLimit = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 5, // 5 intentos por IP
-    skipSuccessfulRequests: true,
-    keyGenerator: (req) => {
-        // Combinar IP y User-Agent para mayor precisión
-        return `${req.ip}-${req.get('User-Agent')}`;
-    },
-    message: {
-        success: false,
-        error: 'Demasiados intentos de login. Intente en 15 minutos.',
-        retryAfter: '15 minutos'
-    },
-    handler: (req, res) => {
-        securityLogger.warn('Rate limit alcanzado para login', {
-            ip: req.ip,
-            userAgent: req.get('User-Agent'),
-            timestamp: new Date().toISOString()
-        });
-        
-        res.status(429).json({
-            success: false,
-            error: 'Demasiados intentos de login. Intente en 15 minutos.',
-            retryAfter: '15 minutos'
-        });
-    }
-});
-
-// Rate limiting para envío de quejas
-const quejaRateLimit = rateLimit({
-    windowMs: 60 * 1000, // 1 minuto
-    max: 3, // 3 quejas por minuto
-    keyGenerator: (req) => {
-        // Combinar IP y número de empleado
-        const empleado = req.body?.numero_empleado || 'unknown';
-        return `${req.ip}-${empleado}`;
-    },
-    message: {
-        success: false,
-        error: 'Límite de quejas por minuto alcanzado.',
-        retryAfter: '1 minuto'
-    },
-    handler: (req, res) => {
-        securityLogger.warn('Rate limit alcanzado para quejas', {
-            ip: req.ip,
-            empleado: req.body?.numero_empleado,
-            timestamp: new Date().toISOString()
-        });
-        
-        res.status(429).json({
-            success: false,
-            error: 'Límite de quejas por minuto alcanzado.',
-            retryAfter: '1 minuto'
-        });
-    }
-});
-
-// Rate limiting general para API
-const apiRateLimit = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // 100 requests por IP
-    message: {
-        success: false,
-        error: 'Demasiadas solicitudes. Intente más tarde.',
-        retryAfter: '15 minutos'
-    },
-    handler: (req, res) => {
-        securityLogger.warn('Rate limit general alcanzado', {
-            ip: req.ip,
-            endpoint: req.path,
-            method: req.method,
-            timestamp: new Date().toISOString()
-        });
-        
-        res.status(429).json({
-            success: false,
-            error: 'Demasiadas solicitudes. Intente más tarde.',
-            retryAfter: '15 minutos'
-        });
-    }
-});
-
-// ===========================================
 // HELMET CONFIGURACIÓN AVANZADA
 // ===========================================
 
 const helmetConfig = helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: ['\'self\''],
-            styleSrc: ['\'self\'', '\'unsafe-inline\'', 'https://fonts.googleapis.com'],
-            fontSrc: ['\'self\'', 'https://fonts.gstatic.com'],
-            scriptSrc: ['\'self\'', '\'unsafe-inline\''],
-            imgSrc: ['\'self\'', 'data:', 'https:'],
-            connectSrc: ['\'self\''],
-            frameSrc: ['\'none\''],
-            objectSrc: ['\'none\''],
-            baseUri: ['\'self\''],
-            formAction: ['\'self\''],
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'"],
+            frameSrc: ["'none'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
             upgradeInsecureRequests: []
         }
     },
@@ -362,9 +274,6 @@ const responseEncryptionMiddleware = (req, res, next) => {
 // ===========================================
 
 module.exports = {
-    loginRateLimit,
-    quejaRateLimit,
-    apiRateLimit,
     helmetConfig,
     auditMiddleware,
     attackDetectionMiddleware,
