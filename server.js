@@ -37,11 +37,11 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: [''self''],
-            styleSrc: [''self'', ''unsafe-inline'', 'https://fonts.googleapis.com'],
-            fontSrc: [''self'', 'https://fonts.gstatic.com'],
-            scriptSrc: [''self'', ''unsafe-inline''],
-            imgSrc: [''self'', 'data:']
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+            fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:']
         }
     },
     xFrameOptions: { action: 'deny' },
