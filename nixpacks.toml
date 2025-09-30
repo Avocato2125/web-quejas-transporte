@@ -1,5 +1,11 @@
+[phases.setup]
+nixPkgs = ['nodejs_22', 'npm-9_x', 'libnss3', 'libatk1.0-0', 'libatk-bridge2.0-0', 'libcups2', 'libgbm1', 'libasound2t64', 'libpangocairo-1.0-0', 'libxss1', 'libgtk-3-0', 'libxshmfence1', 'libglu1', 'chromium']
+
 [phases.install]
-cmds = ["npm ci --omit=dev --no-audit --cache /tmp/.npm-cache"]
+cmds = ['npm ci --omit=dev --no-audit --cache /tmp/.npm-cache']
+
+# Deshabilitar la fase build porque no es necesaria
+[phases.build]
 
 [start]
-cmd = "npm start"
+cmd = 'npm start'
