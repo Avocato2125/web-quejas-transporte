@@ -18,7 +18,6 @@ const fs = require('fs');
 
 // --- Configuración ---
 const validateEnv = require('./config/env.validation');
-const DatabaseManager = require('./config/database');
 const { mainLogger: logger, securityLogger, auditLogger } = require('./config/logger');
 
 // Validar variables de entorno
@@ -338,8 +337,10 @@ async function shutdown(code = 0) {
         await new Promise(resolve => server.close(resolve));
     }
     try {
-        await DatabaseManager.close();
-        logger.info('Conexión a la base de datos cerrada correctamente');
+        if (pool) {
+            await pool.end();
+            logger.info('Conexión a la base de datos cerrada correctamente');
+        }
     } catch (err) {
         logger.error('Error al cerrar la conexión con la base de datos:', err);
     }

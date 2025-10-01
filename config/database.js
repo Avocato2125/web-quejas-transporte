@@ -110,4 +110,4 @@ class RailwayDatabaseManager {
     }
 }
 
-module.exports = DatabaseManager;
+module.exports = RailwayDatabaseManager;
