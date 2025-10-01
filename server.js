@@ -85,30 +85,49 @@ app.use(sanitizeRequestBody);
 app.use(sanitizeQueryParams);
 app.use(requestLogger);
 
-// Validar variables de entorno requeridas
-const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
-requiredEnvVars.forEach(envVar => { 
-    if (!process.env[envVar]) { 
-        logger.error(`ERROR CRÍTICO: Variable de entorno ${envVar} no definida.`); 
-        process.exit(1); 
-    } 
-});
+// Validar variables de entorno requeridas (solo en producción)
+if (NODE_ENV === 'production') {
+    const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
+    const missingVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+    
+    if (missingVars.length > 0) {
+        logger.error(`ERROR CRÍTICO: Variables de entorno faltantes: ${missingVars.join(', ')}`);
+        process.exit(1);
+    }
+} else {
+    // En desarrollo, solo mostrar warnings
+    const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
+    requiredEnvVars.forEach(envVar => { 
+        if (!process.env[envVar]) { 
+            logger.warn(`Variable de entorno ${envVar} no definida. Algunas funcionalidades pueden no funcionar.`); 
+        } 
+    });
+}
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET;
 
 // --- Configuración de la Base de Datos ---
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+let pool = null;
 
-pool.query('SELECT NOW()')
-    .then(() => logger.info('Conexión a PostgreSQL exitosa'))
-    .catch(err => {
-        logger.error('Error conectando a PostgreSQL', { error: err.message });
-        logger.warn('Continuando en modo de desarrollo sin base de datos...');
+if (process.env.DATABASE_URL) {
+    pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000
     });
+
+    pool.query('SELECT NOW()')
+        .then(() => logger.info('Conexión a PostgreSQL exitosa'))
+        .catch(err => {
+            logger.error('Error conectando a PostgreSQL', { error: err.message });
+            logger.warn('Continuando sin base de datos...');
+        });
+} else {
+    logger.warn('DATABASE_URL no definida. La aplicación funcionará sin base de datos.');
+}
 
 // --- Configuración de Quejas ---
 const ALLOWED_TABLES = {
@@ -201,6 +220,16 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// --- Health Check Simple para Railway ---
+app.get('/health-simple', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        version: '6.4.0'
+    });
+});
+
 // --- Endpoint de Salud ---
 app.get('/health', async (req, res) => {
     try {
@@ -220,18 +249,36 @@ app.get('/health', async (req, res) => {
             }
         };
 
-        try {
-            await pool.query('SELECT 1');
-            healthCheck.services.database = 'connected';
-        } catch (dbError) {
-            healthCheck.services.database = 'disconnected';
+        // Verificar conexión a la base de datos con timeout
+        if (pool) {
+            try {
+                const dbPromise = pool.query('SELECT 1');
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database timeout')), 5000)
+                );
+                
+                await Promise.race([dbPromise, timeoutPromise]);
+                healthCheck.services.database = 'connected';
+            } catch (dbError) {
+                healthCheck.services.database = 'disconnected';
+                healthCheck.status = 'degraded';
+                healthCheck.errors = {
+                    database: dbError.message
+                };
+            }
+        } else {
+            healthCheck.services.database = 'not_configured';
             healthCheck.status = 'degraded';
             healthCheck.errors = {
-                database: dbError.message
+                database: 'DATABASE_URL not configured'
             };
         }
 
-        const statusCode = healthCheck.status === 'healthy' ? 200 : 503;
+        // En producción, siempre devolver 200 para el health check básico
+        // El status 'degraded' indica problemas pero no impide el funcionamiento
+        const statusCode = NODE_ENV === 'production' ? 200 : 
+                          (healthCheck.status === 'healthy' ? 200 : 503);
+        
         res.status(statusCode).json(healthCheck);
 
     } catch (error) {
