@@ -1,5 +1,23 @@
 const winston = require('winston');
 const path = require('path');
+const fs = require('fs');
+
+// Asegurar que existan los directorios de logs en producción
+const logDirs = [
+    path.join('logs'),
+    path.join('logs', 'security'),
+    path.join('logs', 'audit')
+];
+
+try {
+    logDirs.forEach(dir => {
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+    });
+} catch (e) {
+    // En caso de fallo creando directorios, continuar con consola
+}
 
 // Configuración base para todos los loggers
 const baseLogConfig = {
@@ -63,6 +81,20 @@ if (process.env.NODE_ENV !== 'production') {
     
     [mainLogger, securityLogger, auditLogger].forEach(logger => {
         logger.add(new winston.transports.Console({ format: consoleFormat }));
+    });
+}
+
+// En producción, agregar consola como respaldo para evitar quedar sin transports
+if (process.env.NODE_ENV === 'production') {
+    const consoleFormat = winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    );
+    [mainLogger, securityLogger, auditLogger].forEach(logger => {
+        const hasTransports = logger.transports && logger.transports.length > 0;
+        if (!hasTransports) {
+            logger.add(new winston.transports.Console({ format: consoleFormat }));
+        }
     });
 }
 
