@@ -15,17 +15,17 @@ process.on('unhandledRejection', (reason) => {
   process.exit(1);
 });
 
-console.log('
-📋 Variables de entorno:');
+console.log(`
+📋 Variables de entorno:`);
 console.log('- NODE_ENV:', process.env.NODE_ENV);
 console.log('- PORT:', process.env.PORT);
 console.log('- DATABASE_URL existe:', !!process.env.DATABASE_URL);
 console.log('- JWT_SECRET existe:', !!process.env.JWT_SECRET);
 console.log('- REFRESH_JWT_SECRET existe:', !!process.env.REFRESH_JWT_SECRET);
 
-console.log('
+console.log(`
 🔄 Cargando server.js...
-');
+`);
 
 try {
   require('./server.js');
