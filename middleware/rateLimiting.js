@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 const createRateLimiter = (options) => {
     const {
@@ -45,7 +46,7 @@ const configureRateLimiting = (logger) => {
         message: 'Demasiados intentos de login. Por favor espere 15 minutos.',
         type: 'login',
         logger,
-        keyGenerator: (req) => `${req.ip}-${req.get('User-Agent')}`
+        keyGenerator: (req) => `${ipKeyGenerator(req)}-${req.get('User-Agent')}`
     });
 
     // Limiter para el envío de quejas, usando IP y número de empleado
@@ -57,7 +58,7 @@ const configureRateLimiting = (logger) => {
         logger,
         keyGenerator: (req) => {
             const empleado = req.body?.numero_empleado || 'unknown';
-            return `${req.ip}-${empleado}`;
+            return `${ipKeyGenerator(req)}-${empleado}`;
         }
     });
 

@@ -267,7 +267,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             
             // Manejar condicionales {{#if}}
             logger.info('Procesando condicionales...');
-            htmlTemplate = htmlTemplate.replace(/\{\{\\#if\\s+(\\w+)\\\}\}([\s\S]*?)\\{\\{\\/if\\}\}\}/g, (match, condition, content) => {
+            htmlTemplate = htmlTemplate.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
                 const hasCondition = !!templateData[condition];
                 logger.info(`Condicional ${condition}:`, { hasCondition, contentLength: content.length });
                 return hasCondition ? content : '';
@@ -482,7 +482,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             }
             
             // Manejar condicionales {{#if}}
-            htmlTemplate = htmlTemplate.replace(/\{\{\\#if\\s+(\\w+)\\\}\}([\s\S]*?)\\{\\{\\/if\\}\}\}/g, (match, condition, content) => {
+            htmlTemplate = htmlTemplate.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
                 return templateData[condition] ? content : '';
             });
             
