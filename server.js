@@ -310,6 +310,8 @@ app.get('/health', async (req, res) => {
 // --- RUTAS DE AUTENTICACIÓN ---
 const authRoutes = require('./routes/auth.routes')(pool, logger, loginLimiter, authenticateToken, verifyRefreshToken);
 app.use('/api/auth', authRoutes);
+// Alias para compatibilidad: permitir /api/login, /api/logout, /api/refresh-token
+app.use('/api', authRoutes);
 
 // --- RUTAS DE QUEJAS ---
 const quejasRoutes = require('./routes/quejas.routes.js')(pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend, puppeteer, fs, path);
