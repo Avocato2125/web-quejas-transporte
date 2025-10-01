@@ -119,7 +119,24 @@ if (process.env.DATABASE_URL) {
     });
 
     pool.query('SELECT NOW()')
-        .then(() => logger.info('Conexión a PostgreSQL exitosa'))
+        .then(async () => {
+            logger.info('Conexión a PostgreSQL exitosa');
+
+            // Verificar que existan tablas clave; si no, ejecutar esquema automáticamente
+            try {
+                const check = await pool.query("SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users','quejas_retraso','resoluciones')");
+                const count = check.rows?.[0]?.count || 0;
+                if (count < 3) {
+                    logger.warn('Tablas clave no encontradas. Ejecutando esquema para inicializar la base de datos...');
+                    const schemaPath = path.join(__dirname, 'database', 'schema.sql');
+                    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+                    await pool.query(schemaSql);
+                    logger.info('Esquema ejecutado correctamente. Tablas creadas.');
+                }
+            } catch (schemaErr) {
+                logger.error('Error asegurando el esquema de base de datos:', { error: schemaErr.message });
+            }
+        })
         .catch(err => {
             logger.error('Error conectando a PostgreSQL', { error: err.message });
             logger.warn('Continuando sin base de datos...');

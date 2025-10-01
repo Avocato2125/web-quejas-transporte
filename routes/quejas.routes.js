@@ -161,6 +161,46 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         }
     });
 
+    // Alias para compatibilidad con frontend: /api/quejas
+    router.get('/api/quejas', authenticateToken, async (req, res) => {
+        try {
+            const { page = 1, limit = 50, estado } = req.query;
+            const pageNum = parseInt(page, 10);
+            const limitNum = Math.min(parseInt(limit, 10), 100);
+            const offset = (pageNum - 1) * limitNum;
+
+            const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
+
+            let queries;
+            if (estado) {
+                queries = tableNames.map(tableName => 
+                    pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} WHERE estado_queja = $1 ORDER BY fecha_creacion DESC LIMIT $2 OFFSET $3`,
+                    [estado, limitNum, offset])
+                );
+            } else {
+                queries = tableNames.map(tableName => 
+                    pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} ORDER BY fecha_creacion DESC LIMIT $1 OFFSET $2`,
+                    [limitNum, offset])
+                );
+            }
+
+            const results = await Promise.all(queries);
+            const allQuejas = results.flatMap(result => result.rows);
+
+            allQuejas.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+
+            res.status(200).json({
+                success: true,
+                data: sanitizeForFrontend(allQuejas),
+                pagination: { page: pageNum, limit: limitNum, total: allQuejas.length }
+            });
+
+        } catch (error) {
+            logger.error('Error al obtener las quejas (alias /api/quejas):', { error: error.message });
+            res.status(500).json({ success: false, error: 'Error al consultar la base de datos.' });
+        }
+    });
+
     // GENERAR PDF DE QUEJA
     router.get('/queja/pdf/:folio', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
         const { folio } = req.params;
