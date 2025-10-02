@@ -236,6 +236,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Favicon handler para evitar 404 ruidosos
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
+});
+
 // --- Health Check Simple para Railway ---
 app.get('/health-simple', (req, res) => {
     res.status(200).json({
