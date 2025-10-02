@@ -201,8 +201,8 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         }
     });
 
-    // GENERAR PDF DE QUEJA
-    router.get('/queja/pdf/:folio', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
+    // GENERAR PDF DE QUEJA (y alias /api/queja/pdf/:folio)
+    router.get(['/queja/pdf/:folio', '/api/queja/pdf/:folio'], authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
         const { folio } = req.params;
         
         try {
@@ -325,6 +325,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             logger.info('Iniciando Puppeteer...');
             const browser = await puppeteer.launch({
                 headless: true,
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -439,8 +440,8 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         }
     });
 
-    // VISUALIZAR PDF DE QUEJA (sin descarga)
-    router.get('/queja/view/:folio', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
+    // VISUALIZAR PDF DE QUEJA (sin descarga) y alias /api/queja/view/:folio
+    router.get(['/queja/view/:folio', '/api/queja/view/:folio'], authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
         const { folio } = req.params;
         
         try {
