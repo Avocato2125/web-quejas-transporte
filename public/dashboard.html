@@ -540,24 +540,132 @@
             return tarjeta;
         }
         
-        function abrirModalDetalles(queja) {
-            quejaActual = queja;
-            modalFolio.textContent = `Detalles Folio: ${queja.folio}`;
-            modalBody.innerHTML = '';
+       function abrirModalDetalles(queja) {
+    quejaActual = queja;
+    modalFolio.textContent = `Detalles Folio: ${queja.folio}`;
+    modalBody.innerHTML = '';
+    
+    resolveForm.reset();
+    
+    const etiquetas = {
+        numero_empleado: 'No. Empleado', 
+        empresa: 'Empresa', 
+        ruta: 'Ruta', 
+        numero_unidad: 'No. Unidad',
+        colonia: 'Colonia', 
+        turno: 'Turno', 
+        tipo: 'Tipo de Queja', 
+        folio: 'Folio',
+        fecha_creacion: 'Fecha de Creación',
+        detalles_retraso: 'Detalles de Retraso', 
+        direccion_subida: 'Dirección de Recolección',
+        hora_programada: 'Hora Programada', 
+        hora_llegada: 'Hora Real de Llegada',
+        metodo_transporte_alterno: 'Transporte Alterno', 
+        monto_gastado: 'Monto Gastado',
+        hora_llegada_planta: 'Llegada a Planta', 
+        nombre_conductor_maltrato: 'Conductor',
+        detalles_maltrato: 'Detalles de Mal Trato', 
+        detalles_inseguridad: 'Detalles de Inseguridad',
+        ubicacion_inseguridad: 'Lugar del Incidente', 
+        numero_unidad_malestado: 'No. Unidad (Mal Estado)',
+        tipo_falla: 'Tipo de Falla', 
+        detalles_malestado: 'Detalles (Mal Estado)', 
+        detalles_otro: 'Detalles (Otro)'
+    };
+    
+    // Campos que son horas (TIMESTAMP)
+    const camposHora = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
+    
+    // Campos que son fecha completa
+    const camposFechaCompleta = ['fecha_creacion'];
+    
+    for (const key in queja) {
+        if (etiquetas[key] && queja[key] !== null && queja[key] !== '') {
+            let valor = queja[key];
             
-            resolveForm.reset();
+            // Convertir tipo a nombre amigable
+            if (key === 'tipo') {
+                valor = TIPO_DISPLAY[valor] || valor;
+            }
             
-            const etiquetas = {
-                numero_empleado: 'No. Empleado', empresa: 'Empresa', ruta: 'Ruta', numero_unidad: 'No. Unidad',
-                colonia: 'Colonia', turno: 'Turno', tipo: 'Tipo de Queja', folio: 'Folio',
-                detalles_retraso: 'Detalles de Retraso', direccion_subida: 'Dirección de Recolección',
-                hora_programada: 'Hora Programada', hora_llegada: 'Hora Real de Llegada',
-                metodo_transporte_alterno: 'Transporte Alterno', monto_gastado: 'Monto Gastado',
-                hora_llegada_planta: 'Llegada a Planta', nombre_conductor_maltrato: 'Conductor',
-                detalles_maltrato: 'Detalles de Mal Trato', detalles_inseguridad: 'Detalles de Inseguridad',
-                ubicacion_inseguridad: 'Lugar del Incidente', numero_unidad_malestado: 'No. Unidad (Mal Estado)',
-                tipo_falla: 'Tipo de Falla', detalles_malestado: 'Detalles (Mal Estado)', detalles_otro: 'Detalles (Otro)'
-            };
+            // Formatear campos de HORA (mostrar solo hora)
+            if (camposHora.includes(key) && valor) {
+                try {
+                    const fechaHora = new Date(valor);
+                    if (!isNaN(fechaHora.getTime())) {
+                        valor = fechaHora.toLocaleTimeString('es-MX', { 
+                            hour: '2-digit', 
+                            minute: '2-digit', 
+                            hour12: true,
+                            timeZone: 'America/Mexico_City'
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error formateando hora:', key, valor, error);
+                }
+            }
+            
+            // Formatear campos de FECHA COMPLETA (fecha + hora)
+            if (camposFechaCompleta.includes(key) && valor) {
+                try {
+                    const fecha = new Date(valor);
+                    if (!isNaN(fecha.getTime())) {
+                        valor = fecha.toLocaleDateString('es-MX', { 
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                            timeZone: 'America/Mexico_City'
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error formateando fecha:', key, valor, error);
+                }
+            }
+            
+            // Formatear monto gastado como moneda
+            if (key === 'monto_gastado' && valor) {
+                try {
+                    const monto = parseFloat(valor);
+                    if (!isNaN(monto)) {
+                        valor = monto.toLocaleString('es-MX', {
+                            style: 'currency',
+                            currency: 'MXN'
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error formateando monto:', error);
+                }
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'detail-item';
+            item.innerHTML = `<strong>${etiquetas[key]}</strong> <span>${valor}</span>`;
+            if (key.includes('detalles')) item.classList.add('full-width');
+            modalBody.appendChild(item);
+        }
+    }
+    
+    // Configurar modal según estado
+    if (queja.estado_queja === 'Revisada') {
+        generatePdfBtn.disabled = false;
+        resolveForm.querySelector('button[type="submit"]').style.display = 'none';
+        resolveForm.querySelector('textarea').style.display = 'none';
+        resolveForm.querySelector('.procedencia-container').style.display = 'none';
+        resolveForm.querySelector('label[for="resolucionText"]').style.display = 'none';
+    } else {
+        generatePdfBtn.disabled = true;
+        resolveForm.querySelector('button[type="submit"]').style.display = 'block';
+        resolveForm.querySelector('textarea').style.display = 'block';
+        resolveForm.querySelector('.procedencia-container').style.display = 'flex';
+        resolveForm.querySelector('label[for="resolucionText"]').style.display = 'block';
+    }
+    
+    detailsModal.classList.add('visible');
+}
             
             for(const key in queja) {
                 if(etiquetas[key] && queja[key] !== null && queja[key] !== '') {
