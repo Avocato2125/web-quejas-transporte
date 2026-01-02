@@ -7,36 +7,55 @@ const puppeteer = require('puppeteer');
 
 module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend) => {
 
-    // ENVÍO DE QUEJA - NUEVA ESTRUCTURA NORMALIZADA
+    // ============================================
+    // MAPEO DE TIPOS (formulario → base de datos)
+    // ============================================
+    const TIPO_MAPPING = {
+        'Retraso': 'retraso',
+        'Mal trato': 'mal_trato',
+        'Inseguridad': 'inseguridad',
+        'Unidad en mal estado': 'unidad_mal_estado',
+        'Otro': 'otro'
+    };
+
+    const TIPOS_PERMITIDOS = ['retraso', 'mal_trato', 'inseguridad', 'unidad_mal_estado', 'otro'];
+
+    // ============================================
+    // ENVÍO DE QUEJA - ESTRUCTURA NORMALIZADA
+    // ============================================
     router.post('/enviar-queja', quejaLimiter, async (req, res) => {
         logger.debug('Recibiendo queja:', req.body);
         
-        // Iniciar cliente para transacción
         const client = await pool.connect();
         
         try {
-            const { tipo } = req.body;
+            let { tipo } = req.body;
+            
+            // Convertir tipo del formulario al tipo de BD
+            tipo = TIPO_MAPPING[tipo] || tipo;
             
             // Validar tipo de queja
-            const tiposPermitidos = ['retraso', 'mal_trato', 'inseguridad', 'unidad_mal_estado', 'otro'];
-            if (!tipo || !tiposPermitidos.includes(tipo)) {
+            if (!tipo || !TIPOS_PERMITIDOS.includes(tipo)) {
                 return res.status(400).json({ 
                     success: false, 
-                    error: 'Tipo de queja no válido. Tipos permitidos: ' + tiposPermitidos.join(', ')
+                    error: 'Tipo de queja no válido. Tipos permitidos: ' + Object.keys(TIPO_MAPPING).join(', ')
                 });
             }
 
-            // Validar con esquema
-            const schema = quejaSchemas[tipo];
-            const { error } = schema.validate(req.body, { allowUnknown: true });
+            // Validar con esquema (usar el tipo mapeado o el original)
+            const schemaKey = Object.keys(TIPO_MAPPING).find(k => TIPO_MAPPING[k] === tipo) || tipo;
+            const schema = quejaSchemas[schemaKey] || quejaSchemas[tipo];
             
-            if (error) {
-                const errores = error.details.map(d => d.message).join(', ');
-                logger.debug('Error de validación:', errores);
-                return res.status(400).json({ 
-                    success: false, 
-                    error: `Datos inválidos: ${errores}` 
-                });
+            if (schema) {
+                const { error } = schema.validate(req.body, { allowUnknown: true });
+                if (error) {
+                    const errores = error.details.map(d => d.message).join(', ');
+                    logger.debug('Error de validación:', errores);
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: `Datos inválidos: ${errores}` 
+                    });
+                }
             }
 
             const { numero_empleado, empresa, ruta, colonia, turno, latitud, longitud, numero_unidad, ...detalles } = req.body;
@@ -59,14 +78,10 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                 });
             }
 
-            // ============================================
             // INICIAR TRANSACCIÓN
-            // ============================================
             await client.query('BEGIN');
 
-            // ============================================
             // INSERT 1: Tabla principal "quejas"
-            // ============================================
             const queryQuejas = `
                 INSERT INTO quejas (
                     folio, numero_empleado, empresa, ruta, colonia, turno,
@@ -98,9 +113,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
 
             logger.debug('Queja insertada con ID:', quejaId);
 
-            // ============================================
             // INSERT 2: Tabla de detalles según el tipo
-            // ============================================
             let queryDetalles;
             let valuesDetalles;
 
@@ -182,9 +195,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
 
             await client.query(queryDetalles, valuesDetalles);
 
-            // ============================================
             // CONFIRMAR TRANSACCIÓN
-            // ============================================
             await client.query('COMMIT');
             
             logger.info('Queja registrada exitosamente', { 
@@ -201,9 +212,6 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             });
             
         } catch (error) {
-            // ============================================
-            // REVERTIR SI HAY ERROR
-            // ============================================
             await client.query('ROLLBACK');
             
             logger.error('Error completo:', error);
@@ -219,14 +227,39 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                 error: 'Error interno del servidor: ' + error.message 
             });
         } finally {
-            // ============================================
-            // LIBERAR CONEXIÓN
-            // ============================================
             client.release();
         }
     });
 
-    // OBTENER QUEJAS
+    // ============================================
+    // FUNCIÓN AUXILIAR: Obtener queja con detalles
+    // ============================================
+    async function obtenerQuejaCompleta(pool, folio) {
+        const query = `
+            SELECT 
+                q.*,
+                dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
+                dr.hora_llegada_planta, dr.detalles_retraso, 
+                dr.metodo_transporte_alterno, dr.monto_gastado,
+                di.ubicacion_inseguridad, di.detalles_inseguridad,
+                dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
+                dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
+                dot.detalles_otro
+            FROM quejas q
+            LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+            LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+            LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+            LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+            LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+            WHERE q.folio = $1
+        `;
+        const result = await pool.query(query, [folio]);
+        return result.rows[0] || null;
+    }
+
+    // ============================================
+    // OBTENER QUEJAS (lista)
+    // ============================================
     router.get('/quejas', authenticateToken, async (req, res) => {
         try {
             const { page = 1, limit = 50, estado } = req.query;
@@ -234,27 +267,42 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             const limitNum = Math.min(parseInt(limit, 10), 100);
             const offset = (pageNum - 1) * limitNum;
 
-            // Usar consulta con JOIN a las nuevas tablas
             let query;
+            let countQuery;
             let params;
             
             if (estado) {
                 query = `
-                    SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
+                    SELECT 
+                        q.*,
+                        dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
+                        dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
+                        di.ubicacion_inseguridad, di.detalles_inseguridad,
+                        dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
+                        dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
+                        dot.detalles_otro
                     FROM quejas q
                     LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
                     LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
                     LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
                     LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
                     LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
-                    WHERE q.estado = $1
+                    WHERE q.estado_queja = $1
                     ORDER BY q.fecha_creacion DESC
                     LIMIT $2 OFFSET $3
                 `;
+                countQuery = `SELECT COUNT(*) FROM quejas WHERE estado_queja = $1`;
                 params = [estado, limitNum, offset];
             } else {
                 query = `
-                    SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
+                    SELECT 
+                        q.*,
+                        dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
+                        dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
+                        di.ubicacion_inseguridad, di.detalles_inseguridad,
+                        dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
+                        dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
+                        dot.detalles_otro
                     FROM quejas q
                     LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
                     LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
@@ -264,16 +312,23 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                     ORDER BY q.fecha_creacion DESC
                     LIMIT $1 OFFSET $2
                 `;
+                countQuery = `SELECT COUNT(*) FROM quejas`;
                 params = [limitNum, offset];
             }
 
             const result = await pool.query(query, params);
-            const allQuejas = result.rows;
+            const countResult = await pool.query(countQuery, estado ? [estado] : []);
+            const total = parseInt(countResult.rows[0].count, 10);
 
             res.status(200).json({
                 success: true,
-                data: sanitizeForFrontend(allQuejas),
-                pagination: { page: pageNum, limit: limitNum, total: allQuejas.length }
+                data: sanitizeForFrontend(result.rows),
+                pagination: { 
+                    page: pageNum, 
+                    limit: limitNum, 
+                    total: total,
+                    totalPages: Math.ceil(total / limitNum)
+                }
             });
 
         } catch (error) {
@@ -282,91 +337,31 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         }
     });
 
-    // Alias para compatibilidad con frontend: /api/quejas
-    router.get('/api/quejas', authenticateToken, async (req, res) => {
-        try {
-            const { page = 1, limit = 50, estado } = req.query;
-            const pageNum = parseInt(page, 10);
-            const limitNum = Math.min(parseInt(limit, 10), 100);
-            const offset = (pageNum - 1) * limitNum;
-
-            const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
-
-            let query;
-            let params;
-            
-            if (estado) {
-                query = `
-                    SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
-                    FROM quejas q
-                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
-                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
-                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
-                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
-                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
-                    WHERE q.estado = $1
-                    ORDER BY q.fecha_creacion DESC
-                    LIMIT $2 OFFSET $3
-                `;
-                params = [estado, limitNum, offset];
-            } else {
-                query = `
-                    SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
-                    FROM quejas q
-                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
-                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
-                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
-                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
-                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
-                    ORDER BY q.fecha_creacion DESC
-                    LIMIT $1 OFFSET $2
-                `;
-                params = [limitNum, offset];
-            }
-
-            const result = await pool.query(query, params);
-            const allQuejas = result.rows;
-
-            res.status(200).json({
-                success: true,
-                data: sanitizeForFrontend(allQuejas),
-                pagination: { page: pageNum, limit: limitNum, total: allQuejas.length }
-            });
-
-        } catch (error) {
-            logger.error('Error al obtener las quejas (alias /api/quejas):', { error: error.message });
-            res.status(500).json({ success: false, error: 'Error al consultar la base de datos.' });
-        }
+    // Alias para compatibilidad
+    router.get('/api/quejas', authenticateToken, async (req, res, next) => {
+        req.url = '/quejas';
+        router.handle(req, res, next);
     });
 
-    // GENERAR PDF DE QUEJA (y alias /api/queja/pdf/:folio)
+    // ============================================
+    // GENERAR PDF DE QUEJA
+    // ============================================
     router.get(['/queja/pdf/:folio', '/api/queja/pdf/:folio'], authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
         const { folio } = req.params;
+        let browser;
         
         try {
-            // Buscar la queja en la nueva estructura
-            const query = `
-                SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
-                FROM quejas q
-                LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
-                LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
-                LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
-                LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
-                LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
-                WHERE q.folio = $1
-            `;
-            const result = await pool.query(query, [folio]);
-            const queja = result.rows[0];
-            const tablaOrigen = queja ? `quejas_${queja.tipo}` : null;
+            // Buscar la queja
+            const queja = await obtenerQuejaCompleta(pool, folio);
             
             if (!queja) {
                 return res.status(404).json({ success: false, error: 'Queja no encontrada' });
             }
             
-            // Buscar la resolución
+            // Buscar la resolución (nueva estructura usa queja_id)
             const resolucionResult = await pool.query(
-                'SELECT * FROM resoluciones WHERE folio_queja = $1 ORDER BY fecha_resolucion DESC LIMIT 1',
-                [folio]
+                'SELECT * FROM resoluciones WHERE queja_id = $1 ORDER BY fecha_resolucion DESC LIMIT 1',
+                [queja.id]
             );
             
             const resolucion = resolucionResult.rows[0];
@@ -374,245 +369,14 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                 logger.warn('Intento de generar PDF sin resolución', { folio, ip: req.ip });
                 return res.status(404).json({ success: false, error: 'No se encontró resolución para esta queja' });
             }
-            
-            // Preparar datos para el template
-            const templateData = {
-                folio: queja.folio,
-                numero_empleado: queja.numero_empleado,
-                empresa: queja.empresa,
-                tipo: queja.tipo,
-                fecha_creacion: new Date(queja.fecha_creacion).toLocaleDateString('es-MX', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    timeZone: 'America/Mexico_City'
-                }),
-                fechaReporte: new Date().toLocaleDateString('es-MX', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    timeZone: 'America/Mexico_City'
-                }),
-                responsable: resolucion.responsable,
-                estado: queja.estado_queja,
-                procedencia: resolucion.procedencia,
-                procedencia_class: resolucion.procedencia === 'Procedió' ? 'procedio' : 'no-procedio',
-                resolucion: resolucion.texto_resolucion,
-                ruta: queja.ruta || null,
-                numero_unidad: queja.numero_unidad || null,
-                colonia: queja.colonia || null,
-                turno: queja.turno || null,
-                detalles_retraso: queja.detalles_retraso || null,
-                detalles_maltrato: queja.detalles_maltrato || null,
-                detalles_inseguridad: queja.detalles_inseguridad || null,
-                detalles_malestado: queja.detalles_malestado || null,
-                detalles_otro: queja.detalles_otro || null
-            };
-            
-            // Log de datos para debugging
-            logger.info('Datos del template:', { 
-                folio: templateData.folio,
-                responsable: templateData.responsable,
-                procedencia: templateData.procedencia,
-                procedencia_class: templateData.procedencia_class,
-                hasResolucion: !!templateData.resolucion,
-                hasDetalles: {
-                    retraso: !!templateData.detalles_retraso,
-                    maltrato: !!templateData.detalles_maltrato,
-                    inseguridad: !!templateData.detalles_inseguridad,
-                    malestado: !!templateData.detalles_malestado,
-                    otro: !!templateData.detalles_otro
-                }
-            });
-            
-            // Leer el template HTML
-            const templatePath = path.join(__dirname, '..', 'public', 'templates', 'reporte-queja.html');
-                
-            let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
-            
-            // Reemplazar variables en el template (simple template engine)
-            logger.info('Iniciando procesamiento del template...');
-            for (const [key, value] of Object.entries(templateData)) {
-                const regex = new RegExp(`{{${key}}}`, 'g');
-                const originalLength = htmlTemplate.length;
-                htmlTemplate = htmlTemplate.replace(regex, value || '');
-                const replaced = originalLength !== htmlTemplate.length;
-                if (replaced) {
-                    logger.info(`Variable ${key} reemplazada:`, { value: value || 'null/undefined' });
-                }
-            }
-            
-            // Manejar condicionales {{#if}}
-            logger.info('Procesando condicionales...');
-            htmlTemplate = htmlTemplate.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
-                const hasCondition = !!templateData[condition];
-                logger.info(`Condicional ${condition}:`, { hasCondition, contentLength: content.length });
-                return hasCondition ? content : '';
-            });
-            
-            // Verificar que no queden variables sin reemplazar
-            const remainingVariables = htmlTemplate.match(/\{\{[^}]+\}\} /g);
-            if (remainingVariables) {
-                logger.warn('Variables sin reemplazar:', remainingVariables);
-            } else {
-                logger.info('Todas las variables fueron reemplazadas correctamente');
-            }
-            
-            // Generar PDF con Puppeteer (configuración simplificada)
-            logger.info('Iniciando Puppeteer...');
-            const browser = await puppeteer.launch({
-                headless: true,
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--single-process',
-                    '--disable-gpu',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI',
-                    '--disable-ipc-flooding-protection',
-                    '--memory-pressure-off',
-                    '--max_old_space_size=4096'
-                ],
-                timeout: 30000,
-                protocolTimeout: 30000
-            });
-            
-            logger.info('Creando nueva página...');
-            const page = await browser.newPage();
-            
-            // Configurar viewport para consistencia
-            logger.info('Configurando viewport...');
-            await page.setViewport({ 
-                width: 1200, 
-                height: 800,
-                deviceScaleFactor: 1
-            });
-            
-            // Configurar cache y recursos
-            await page.setCacheEnabled(false);
-            await page.setJavaScriptEnabled(true);
-            
-            // Cargar contenido y esperar a que todo esté listo
-            logger.info('Cargando contenido HTML...');
-            await page.setContent(htmlTemplate, { 
-                waitUntil: 'domcontentloaded',
-                timeout: 30000
-            });
-            
-            // Esperar un poco más para asegurar que todo se renderice
-            logger.info('Esperando renderizado adicional...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            logger.info('Generando PDF...');
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true,
-                preferCSSPageSize: false,
-                margin: {
-                    top: '20mm',
-                    right: '15mm',
-                    bottom: '20mm',
-                    left: '15mm'
-                },
-                timeout: 30000,
-                displayHeaderFooter: false,
-                scale: 0.8
-            });
-            
-            logger.info('PDF generado exitosamente', { 
-                bufferSize: pdfBuffer.length,
-                bufferSizeKB: Math.round(pdfBuffer.length / 1024),
-                isBuffer: Buffer.isBuffer(pdfBuffer),
-                bufferType: typeof pdfBuffer,
-                firstBytes: pdfBuffer.slice(0, 10).toString('hex')
-            });
-            
-            await browser.close();
 
-            // Enviar PDF como respuesta con headers optimizados
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `attachment; filename="reporte-queja-${folio}.pdf"`);
-            res.setHeader('Content-Length', pdfBuffer.length);
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
-            res.setHeader('Accept-Ranges', 'bytes');
-            res.setHeader('Content-Transfer-Encoding', 'binary');
-            
-            // Asegurar que sea un Buffer válido
-            const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
-            res.send(buffer);
-            
-            logger.info('PDF generado exitosamente', { folio, responsable: req.user.username, ip: req.ip });
-            
-        } catch (error) {
-            logger.error('Error al generar PDF:', { 
-                error: error.message, 
-                stack: error.stack,
-                folio, 
-                ip: req.ip 
-            });
-            
-            // Cerrar browser si está abierto
-            try {
-                if (browser) {
-                    await browser.close();
+            // Obtener nombre del responsable
+            let responsableNombre = 'Desconocido';
+            if (resolucion.responsable_id) {
+                const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [resolucion.responsable_id]);
+                if (userResult.rows[0]) {
+                    responsableNombre = userResult.rows[0].username;
                 }
-            } catch (closeError) {
-                logger.warn('Error al cerrar browser:', closeError.message);
-            }
-            
-            res.status(500).json({ 
-                success: false, 
-                error: 'Error al generar el reporte PDF',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined
-            });
-        }
-    });
-
-    // VISUALIZAR PDF DE QUEJA (sin descarga) y alias /api/queja/view/:folio
-    router.get(['/queja/view/:folio', '/api/queja/view/:folio'], authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
-        const { folio } = req.params;
-        
-        try {
-            // Buscar la queja en todas las tablas
-            const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
-            let queja = null;
-            let tablaOrigen = null;
-            
-            for (const tableName of tableNames) {
-                const result = await pool.query(`SELECT * FROM ${tableName} WHERE folio = $1`, [folio]);
-                if (result.rows.length > 0) {
-                    queja = result.rows[0];
-                    tablaOrigen = tableName;
-                    break;
-                }
-            }
-            
-            if (!queja) {
-                logger.warn('Intento de visualizar PDF para queja no encontrada', { folio, ip: req.ip });
-                return res.status(404).json({ success: false, error: 'Queja no encontrada' });
-            }
-            
-            // Buscar la resolución
-            const resolucionResult = await pool.query(
-                'SELECT * FROM resoluciones WHERE folio_queja = $1 ORDER BY fecha_resolucion DESC LIMIT 1',
-                [folio]
-            );
-            
-            const resolucion = resolucionResult.rows[0];
-            if (!resolucion) {
-                logger.warn('Intento de visualizar PDF sin resolución', { folio, ip: req.ip });
-                return res.status(404).json({ success: false, error: 'No se encontró resolución para esta queja' });
             }
             
             // Preparar datos para el template
@@ -635,9 +399,9 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                     day: 'numeric',
                     timeZone: 'America/Mexico_City'
                 }),
-                responsable: resolucion.responsable,
+                responsable: responsableNombre,
                 estado: queja.estado_queja,
-                procedencia: resolucion.procedencia,
+                procedencia: resolucion.procedencia || '',
                 procedencia_class: resolucion.procedencia === 'Procedió' ? 'procedio' : 'no-procedio',
                 resolucion: resolucion.texto_resolucion,
                 ruta: queja.ruta || null,
@@ -666,75 +430,173 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                 return templateData[condition] ? content : '';
             });
             
-            // Enviar HTML para visualización
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            res.send(htmlTemplate);
+            // Generar PDF con Puppeteer
+            browser = await puppeteer.launch({
+                headless: true,
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu'
+                ],
+                timeout: 30000
+            });
             
-            logger.info('HTML de queja enviado para visualización', { folio, responsable: req.user.username, ip: req.ip });
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1200, height: 800 });
+            await page.setContent(htmlTemplate, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
+                scale: 0.8
+            });
+            
+            await browser.close();
+
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="reporte-queja-${folio}.pdf"`);
+            res.setHeader('Content-Length', pdfBuffer.length);
+            res.send(Buffer.from(pdfBuffer));
+            
+            logger.info('PDF generado exitosamente', { folio, responsable: req.user.username, ip: req.ip });
             
         } catch (error) {
-            logger.error('Error al generar HTML de queja:', { 
-                error: error.message, 
-                stack: error.stack,
-                folio, 
-                ip: req.ip 
-            });
+            logger.error('Error al generar PDF:', { error: error.message, folio, ip: req.ip });
             
-            res.status(500).json({ 
-                success: false, 
-                error: 'Error al generar el reporte HTML',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined
-            });
+            if (browser) {
+                try { await browser.close(); } catch (e) {}
+            }
+            
+            res.status(500).json({ success: false, error: 'Error al generar el reporte PDF' });
         }
     });
 
-    // RESOLVER QUEJA
+    // ============================================
+    // VISUALIZAR PDF (HTML)
+    // ============================================
+    router.get(['/queja/view/:folio', '/api/queja/view/:folio'], authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
+        const { folio } = req.params;
+        
+        try {
+            const queja = await obtenerQuejaCompleta(pool, folio);
+            
+            if (!queja) {
+                return res.status(404).json({ success: false, error: 'Queja no encontrada' });
+            }
+            
+            const resolucionResult = await pool.query(
+                'SELECT * FROM resoluciones WHERE queja_id = $1 ORDER BY fecha_resolucion DESC LIMIT 1',
+                [queja.id]
+            );
+            
+            const resolucion = resolucionResult.rows[0];
+            if (!resolucion) {
+                return res.status(404).json({ success: false, error: 'No se encontró resolución para esta queja' });
+            }
+
+            let responsableNombre = 'Desconocido';
+            if (resolucion.responsable_id) {
+                const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [resolucion.responsable_id]);
+                if (userResult.rows[0]) {
+                    responsableNombre = userResult.rows[0].username;
+                }
+            }
+            
+            const templateData = {
+                folio: queja.folio,
+                numero_empleado: queja.numero_empleado,
+                empresa: queja.empresa,
+                tipo: queja.tipo,
+                fecha_creacion: new Date(queja.fecha_creacion).toLocaleDateString('es-MX', {
+                    year: 'numeric', month: 'long', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City'
+                }),
+                fechaReporte: new Date().toLocaleDateString('es-MX', {
+                    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Mexico_City'
+                }),
+                responsable: responsableNombre,
+                estado: queja.estado_queja,
+                procedencia: resolucion.procedencia || '',
+                procedencia_class: resolucion.procedencia === 'Procedió' ? 'procedio' : 'no-procedio',
+                resolucion: resolucion.texto_resolucion,
+                ruta: queja.ruta || null,
+                numero_unidad: queja.numero_unidad || null,
+                colonia: queja.colonia || null,
+                turno: queja.turno || null,
+                detalles_retraso: queja.detalles_retraso || null,
+                detalles_maltrato: queja.detalles_maltrato || null,
+                detalles_inseguridad: queja.detalles_inseguridad || null,
+                detalles_malestado: queja.detalles_malestado || null,
+                detalles_otro: queja.detalles_otro || null
+            };
+            
+            const templatePath = path.join(__dirname, '..', 'public', 'templates', 'reporte-queja.html');
+            let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
+            
+            for (const [key, value] of Object.entries(templateData)) {
+                const regex = new RegExp(`{{${key}}}`, 'g');
+                htmlTemplate = htmlTemplate.replace(regex, value || '');
+            }
+            
+            htmlTemplate = htmlTemplate.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
+                return templateData[condition] ? content : '';
+            });
+            
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.send(htmlTemplate);
+            
+        } catch (error) {
+            logger.error('Error al generar HTML:', { error: error.message, folio });
+            res.status(500).json({ success: false, error: 'Error al generar el reporte HTML' });
+        }
+    });
+
+    // ============================================
+    // RESOLVER QUEJA (nueva estructura)
+    // ============================================
     router.put('/queja/resolver', authenticateToken, requireRole(['admin', 'supervisor']), async (req, res) => {
         const client = await pool.connect();
         
         try {
-            const { id, tabla_origen, folio, resolucion, procedencia, estado = 'Revisada' } = req.body;
-            const responsable = req.user.username;
+            const { id, folio, resolucion, procedencia, estado = 'Revisada' } = req.body;
+            const responsable_id = req.user.id; // Usar el ID del usuario autenticado
 
-            if (!id || !tabla_origen || !folio || !resolucion || !procedencia) {
+            // Validar datos requeridos
+            if (!id || !folio || !resolucion || !procedencia) {
                 return res.status(400).json({ 
                     success: false, 
-                    error: 'Faltan datos requeridos: id, tabla_origen, folio, resolucion, procedencia' 
+                    error: 'Faltan datos requeridos: id, folio, resolucion, procedencia' 
                 });
             }
 
-            // Validar que procedencia sea válida
-            if (!['Procedio', 'No Procedio', 'Procedió', 'No Procedió'].includes(procedencia)) {
+            // Validar procedencia
+            const procedenciasValidas = ['Procedio', 'No Procedio', 'Procedió', 'No Procedió'];
+            if (!procedenciasValidas.includes(procedencia)) {
                 return res.status(400).json({ 
                     success: false, 
-                    error: 'Procedencia debe ser "Procedio" o "No Procedio"' 
+                    error: 'Procedencia debe ser "Procedió" o "No Procedió"' 
                 });
             }
             
-            // Normalizar procedencia para la base de datos
             const procedenciaNormalizada = procedencia.includes('Procedio') ? 'Procedió' : 'No Procedió';
-
-            if (!ALLOWED_TABLES[tabla_origen]) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Nombre de tabla no válido.' 
-                });
-            }
 
             await client.query('BEGIN');
 
-            const checkQuery = `SELECT id, folio, estado_queja FROM ${tabla_origen} WHERE id = $1 AND folio = $2`;
-            const checkResult = await client.query(checkQuery, [id, folio]);
+            // Verificar que la queja existe y está pendiente
+            const checkResult = await client.query(
+                'SELECT id, folio, estado_queja FROM quejas WHERE id = $1 AND folio = $2',
+                [id, folio]
+            );
             
             if (checkResult.rows.length === 0) {
                 await client.query('ROLLBACK');
-                return res.status(404).json({ 
-                    success: false, 
-                    error: 'Queja no encontrada.' 
-                });
+                return res.status(404).json({ success: false, error: 'Queja no encontrada.' });
             }
             
-            // Verificar que la queja esté pendiente
             if (checkResult.rows[0].estado_queja !== 'Pendiente') {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ 
@@ -743,15 +605,28 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                 });
             }
 
-            const updateQuery = `UPDATE ${tabla_origen} SET estado_queja = $1 WHERE id = $2`;
-            await client.query(updateQuery, [estado, id]);
+            // Actualizar estado de la queja
+            await client.query(
+                'UPDATE quejas SET estado_queja = $1 WHERE id = $2',
+                [estado, id]
+            );
 
-            const insertQuery = 'INSERT INTO resoluciones (folio_queja, texto_resolucion, responsable, procedencia) VALUES ($1, $2, $3, $4)';
-            await client.query(insertQuery, [folio, resolucion, responsable, procedenciaNormalizada]);
+            // Insertar resolución (nueva estructura con queja_id y responsable_id)
+            await client.query(
+                'INSERT INTO resoluciones (queja_id, texto_resolucion, responsable_id, procedencia) VALUES ($1, $2, $3, $4)',
+                [id, resolucion, responsable_id, procedenciaNormalizada]
+            );
 
             await client.query('COMMIT');
             
-            logger.info('Queja resuelta exitosamente', { folio, responsable, estado, procedencia, ip: req.ip });
+            logger.info('Queja resuelta exitosamente', { 
+                folio, 
+                responsable: req.user.username, 
+                estado, 
+                procedencia: procedenciaNormalizada,
+                ip: req.ip 
+            });
+            
             res.status(200).json({ 
                 success: true, 
                 message: 'Queja resuelta y registrada exitosamente.' 
@@ -759,8 +634,8 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
 
         } catch (error) {
             await client.query('ROLLBACK');
-            logger.error('Error en la transacción de resolución:', { error: error.message });
-            res.status(500).json({ success: false, error: 'Error interno del servidor al procesar la resolución.' });
+            logger.error('Error en resolución:', { error: error.message });
+            res.status(500).json({ success: false, error: 'Error interno del servidor.' });
         } finally {
             client.release();
         }
