@@ -73,7 +73,7 @@
         .detail-item strong { display: block; font-size: 0.8em; text-transform: uppercase; color: var(--color-text-medium); margin-bottom: 5px; }
         .full-width { grid-column: 1 / -1; }
         .modal-footer { padding: 20px; border-top: 1px solid var(--color-border); background-color: var(--color-light-gray); }
-        .modal-footer textarea { width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 1em; margin-bottom: 15px; }
+        .modal-footer textarea { width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 1em; margin-bottom: 15px; box-sizing: border-box; }
         .modal-footer button { background-color: var(--color-success); color: white; border: none; padding: 12px 25px; font-size: 1.1em; font-weight: 600; border-radius: 8px; cursor: pointer; transition: background-color 0.2s ease; }
         .modal-footer button:hover { background-color: #059669; }
         .procedencia-container { display: flex; gap: 20px; margin-bottom: 15px; align-items: center; }
@@ -117,27 +117,10 @@
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
         }
-        .pdf-button-view::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
         .pdf-button-view:hover {
             background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        }
-        .pdf-button-view:hover::before {
-            left: 100%;
-        }
-        .pdf-button-view:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
         }
         .queja-respondida {
             border-left-color: #10B981 !important;
@@ -315,7 +298,7 @@
 <body>
 
     <header class="header">
-        <h1>Panel de Quejas Pendientes</h1>
+        <h1>Panel de Quejas</h1>
         <div class="search-container">
             <input type="text" id="searchFolio" placeholder="Buscar por folio...">
         </div>
@@ -362,7 +345,7 @@
                     </div>
                     <label for="resolucionText"><strong>Escribir Resolución:</strong></label>
                     <textarea id="resolucionText" placeholder="Describe la acción tomada para resolver esta queja..." required></textarea>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                         <button type="submit">Marcar como Atendida</button>
                         <button type="button" id="generatePdfBtn" class="pdf-button" disabled>Generar PDF</button>
                     </div>
@@ -371,9 +354,9 @@
         </div>
     </div>
 
-    <script src="/js/sanitization.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- AUTENTICACIÓN ---
         const accessToken = localStorage.getItem('accessToken');
         const user = JSON.parse(localStorage.getItem('user'));
 
@@ -392,6 +375,7 @@
             window.location.href = '/login.html';
         });
 
+        // --- ELEMENTOS DEL DOM ---
         const tabsNav = document.getElementById('tabsNav');
         const quejasLista = document.getElementById('quejasLista');
         const detailsModal = document.getElementById('detailsModal');
@@ -414,6 +398,7 @@
             'otro': 'Otro'
         };
 
+        // --- CARGAR QUEJAS ---
         async function fetchQuejas() {
             try {
                 const response = await fetch('/api/quejas', {
@@ -443,6 +428,7 @@
             }
         }
 
+        // --- RENDERIZAR QUEJAS ---
         function renderQuejas() {
             quejasLista.innerHTML = '';
             const activeTab = document.querySelector('.tab-btn.active');
@@ -457,7 +443,6 @@
             } else if (tipoFiltro === 'Respondidas') {
                 quejasFiltradas = quejasFiltradas.filter(q => q.estado_queja === 'Revisada');
             } else if (tipoFiltro !== 'Todos') {
-                // Filtrar por tipo de queja (ahora usa el formato de BD)
                 quejasFiltradas = quejasFiltradas.filter(q => q.tipo === tipoFiltro);
             }
             
@@ -493,20 +478,26 @@
             });
         }
 
+        // --- CREAR TARJETA DE QUEJA ---
         function crearTarjetaQueja(queja) {
             const tarjeta = document.createElement('div');
             tarjeta.className = queja.estado_queja === 'Revisada' ? 'queja-tarjeta queja-respondida' : 'queja-tarjeta';
             tarjeta.dataset.id = queja.id;
             tarjeta.dataset.folio = queja.folio;
             
-            // Formatear fecha
+            // Formatear fecha Y HORA
             let fechaFormateada = 'Fecha no disponible';
             if (queja.fecha_creacion) {
                 try {
                     const fecha = new Date(queja.fecha_creacion);
                     if (!isNaN(fecha.getTime())) {
                         fechaFormateada = fecha.toLocaleDateString('es-MX', { 
-                            dateStyle: 'medium',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
                             timeZone: 'America/Mexico_City'
                         });
                     }
@@ -540,135 +531,49 @@
             return tarjeta;
         }
         
-       function abrirModalDetalles(queja) {
-    quejaActual = queja;
-    modalFolio.textContent = `Detalles Folio: ${queja.folio}`;
-    modalBody.innerHTML = '';
-    
-    resolveForm.reset();
-    
-    const etiquetas = {
-        numero_empleado: 'No. Empleado', 
-        empresa: 'Empresa', 
-        ruta: 'Ruta', 
-        numero_unidad: 'No. Unidad',
-        colonia: 'Colonia', 
-        turno: 'Turno', 
-        tipo: 'Tipo de Queja', 
-        folio: 'Folio',
-        fecha_creacion: 'Fecha de Creación',
-        detalles_retraso: 'Detalles de Retraso', 
-        direccion_subida: 'Dirección de Recolección',
-        hora_programada: 'Hora Programada', 
-        hora_llegada: 'Hora Real de Llegada',
-        metodo_transporte_alterno: 'Transporte Alterno', 
-        monto_gastado: 'Monto Gastado',
-        hora_llegada_planta: 'Llegada a Planta', 
-        nombre_conductor_maltrato: 'Conductor',
-        detalles_maltrato: 'Detalles de Mal Trato', 
-        detalles_inseguridad: 'Detalles de Inseguridad',
-        ubicacion_inseguridad: 'Lugar del Incidente', 
-        numero_unidad_malestado: 'No. Unidad (Mal Estado)',
-        tipo_falla: 'Tipo de Falla', 
-        detalles_malestado: 'Detalles (Mal Estado)', 
-        detalles_otro: 'Detalles (Otro)'
-    };
-    
-    // Campos que son horas (TIMESTAMP)
-    const camposHora = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
-    
-    // Campos que son fecha completa
-    const camposFechaCompleta = ['fecha_creacion'];
-    
-    for (const key in queja) {
-        if (etiquetas[key] && queja[key] !== null && queja[key] !== '') {
-            let valor = queja[key];
+        // --- ABRIR MODAL DE DETALLES ---
+        function abrirModalDetalles(queja) {
+            quejaActual = queja;
+            modalFolio.textContent = `Detalles Folio: ${queja.folio}`;
+            modalBody.innerHTML = '';
             
-            // Convertir tipo a nombre amigable
-            if (key === 'tipo') {
-                valor = TIPO_DISPLAY[valor] || valor;
-            }
+            resolveForm.reset();
             
-            // Formatear campos de HORA (mostrar solo hora)
-            if (camposHora.includes(key) && valor) {
-                try {
-                    const fechaHora = new Date(valor);
-                    if (!isNaN(fechaHora.getTime())) {
-                        valor = fechaHora.toLocaleTimeString('es-MX', { 
-                            hour: '2-digit', 
-                            minute: '2-digit', 
-                            hour12: true,
-                            timeZone: 'America/Mexico_City'
-                        });
-                    }
-                } catch (error) {
-                    console.warn('Error formateando hora:', key, valor, error);
-                }
-            }
+            const etiquetas = {
+                numero_empleado: 'No. Empleado', 
+                empresa: 'Empresa', 
+                ruta: 'Ruta', 
+                numero_unidad: 'No. Unidad',
+                colonia: 'Colonia', 
+                turno: 'Turno', 
+                tipo: 'Tipo de Queja', 
+                folio: 'Folio',
+                fecha_creacion: 'Fecha de Creación',
+                detalles_retraso: 'Detalles de Retraso', 
+                direccion_subida: 'Dirección de Recolección',
+                hora_programada: 'Hora Programada', 
+                hora_llegada: 'Hora Real de Llegada',
+                metodo_transporte_alterno: 'Transporte Alterno', 
+                monto_gastado: 'Monto Gastado',
+                hora_llegada_planta: 'Llegada a Planta', 
+                nombre_conductor_maltrato: 'Conductor',
+                detalles_maltrato: 'Detalles de Mal Trato', 
+                detalles_inseguridad: 'Detalles de Inseguridad',
+                ubicacion_inseguridad: 'Lugar del Incidente', 
+                numero_unidad_malestado: 'No. Unidad (Mal Estado)',
+                tipo_falla: 'Tipo de Falla', 
+                detalles_malestado: 'Detalles (Mal Estado)', 
+                detalles_otro: 'Detalles (Otro)'
+            };
             
-            // Formatear campos de FECHA COMPLETA (fecha + hora)
-            if (camposFechaCompleta.includes(key) && valor) {
-                try {
-                    const fecha = new Date(valor);
-                    if (!isNaN(fecha.getTime())) {
-                        valor = fecha.toLocaleDateString('es-MX', { 
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: true,
-                            timeZone: 'America/Mexico_City'
-                        });
-                    }
-                } catch (error) {
-                    console.warn('Error formateando fecha:', key, valor, error);
-                }
-            }
+            // Campos que son horas (TIMESTAMP) - mostrar solo hora
+            const camposHora = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
             
-            // Formatear monto gastado como moneda
-            if (key === 'monto_gastado' && valor) {
-                try {
-                    const monto = parseFloat(valor);
-                    if (!isNaN(monto)) {
-                        valor = monto.toLocaleString('es-MX', {
-                            style: 'currency',
-                            currency: 'MXN'
-                        });
-                    }
-                } catch (error) {
-                    console.warn('Error formateando monto:', error);
-                }
-            }
+            // Campos que son fecha completa (fecha + hora)
+            const camposFechaCompleta = ['fecha_creacion'];
             
-            const item = document.createElement('div');
-            item.className = 'detail-item';
-            item.innerHTML = `<strong>${etiquetas[key]}</strong> <span>${valor}</span>`;
-            if (key.includes('detalles')) item.classList.add('full-width');
-            modalBody.appendChild(item);
-        }
-    }
-    
-    // Configurar modal según estado
-    if (queja.estado_queja === 'Revisada') {
-        generatePdfBtn.disabled = false;
-        resolveForm.querySelector('button[type="submit"]').style.display = 'none';
-        resolveForm.querySelector('textarea').style.display = 'none';
-        resolveForm.querySelector('.procedencia-container').style.display = 'none';
-        resolveForm.querySelector('label[for="resolucionText"]').style.display = 'none';
-    } else {
-        generatePdfBtn.disabled = true;
-        resolveForm.querySelector('button[type="submit"]').style.display = 'block';
-        resolveForm.querySelector('textarea').style.display = 'block';
-        resolveForm.querySelector('.procedencia-container').style.display = 'flex';
-        resolveForm.querySelector('label[for="resolucionText"]').style.display = 'block';
-    }
-    
-    detailsModal.classList.add('visible');
-}
-            
-            for(const key in queja) {
-                if(etiquetas[key] && queja[key] !== null && queja[key] !== '') {
+            for (const key in queja) {
+                if (etiquetas[key] && queja[key] !== null && queja[key] !== '') {
                     let valor = queja[key];
                     
                     // Convertir tipo a nombre amigable
@@ -676,15 +581,55 @@
                         valor = TIPO_DISPLAY[valor] || valor;
                     }
                     
-                    // Formatear horas
-                    if (['hora_programada', 'hora_llegada', 'hora_llegada_planta'].includes(key) && valor) {
+                    // Formatear campos de HORA (mostrar solo hora)
+                    if (camposHora.includes(key) && valor) {
                         try {
                             const fechaHora = new Date(valor);
                             if (!isNaN(fechaHora.getTime())) {
-                                valor = fechaHora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+                                valor = fechaHora.toLocaleTimeString('es-MX', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit', 
+                                    hour12: true,
+                                    timeZone: 'America/Mexico_City'
+                                });
                             }
                         } catch (error) {
-                            console.warn('Error formateando hora:', error);
+                            console.warn('Error formateando hora:', key, valor, error);
+                        }
+                    }
+                    
+                    // Formatear campos de FECHA COMPLETA (fecha + hora)
+                    if (camposFechaCompleta.includes(key) && valor) {
+                        try {
+                            const fecha = new Date(valor);
+                            if (!isNaN(fecha.getTime())) {
+                                valor = fecha.toLocaleDateString('es-MX', { 
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: true,
+                                    timeZone: 'America/Mexico_City'
+                                });
+                            }
+                        } catch (error) {
+                            console.warn('Error formateando fecha:', key, valor, error);
+                        }
+                    }
+                    
+                    // Formatear monto gastado como moneda
+                    if (key === 'monto_gastado' && valor) {
+                        try {
+                            const monto = parseFloat(valor);
+                            if (!isNaN(monto)) {
+                                valor = monto.toLocaleString('es-MX', {
+                                    style: 'currency',
+                                    currency: 'MXN'
+                                });
+                            }
+                        } catch (error) {
+                            console.warn('Error formateando monto:', error);
                         }
                     }
                     
@@ -714,6 +659,7 @@
             detailsModal.classList.add('visible');
         }
 
+        // --- EVENT LISTENERS ---
         tabsNav.addEventListener('click', (e) => {
             if (e.target.classList.contains('tab-btn')) {
                 document.querySelector('.tab-btn.active').classList.remove('active');
@@ -739,6 +685,7 @@
             }
         });
 
+        // --- RESOLVER QUEJA ---
         resolveForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const resolucion = document.getElementById('resolucionText').value;
@@ -776,14 +723,19 @@
             }
         });
         
+        // --- CERRAR MODAL ---
         modalCloseBtn.addEventListener('click', () => detailsModal.classList.remove('visible'));
-        detailsModal.addEventListener('click', (e) => { if(e.target === detailsModal) detailsModal.classList.remove('visible') });
+        detailsModal.addEventListener('click', (e) => { 
+            if (e.target === detailsModal) detailsModal.classList.remove('visible');
+        });
 
+        // --- GENERAR PDF DESDE MODAL ---
         generatePdfBtn.addEventListener('click', async () => {
             if (!quejaActual) return;
             await generarPdfDirecto(quejaActual.folio);
         });
 
+        // --- GENERAR PDF DIRECTO ---
         async function generarPdfDirecto(folio) {
             try {
                 const response = await fetch(`/queja/pdf/${folio}`, {
@@ -810,6 +762,7 @@
             }
         }
 
+        // --- VER REPORTE HTML ---
         async function verReporte(folio) {
             try {
                 const response = await fetch(`/queja/view/${folio}`, {
@@ -832,6 +785,7 @@
             }
         }
 
+        // --- INICIALIZAR ---
         fetchQuejas();
     });
     </script>
