@@ -5,20 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
 
-module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend) => {
-
-    // ============================================
-    // MAPEO DE TIPOS (formulario → base de datos)
-    // ============================================
-    const TIPO_MAPPING = {
-        'Retraso': 'retraso',
-        'Mal trato': 'mal_trato',
-        'Inseguridad': 'inseguridad',
-        'Unidad en mal estado': 'unidad_mal_estado',
-        'Otro': 'otro'
-    };
-
-    const TIPOS_PERMITIDOS = ['retraso', 'mal_trato', 'inseguridad', 'unidad_mal_estado', 'otro'];
+module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend, TIPO_MAPPING, TIPOS_PERMITIDOS) => {
 
     // ============================================
     // ENVÍO DE QUEJA - ESTRUCTURA NORMALIZADA

@@ -1,4 +1,4 @@
-// server.js (Versión 6.4 - CORREGIDO)
+// server.js (Versión 7.0 - ESTRUCTURA NORMALIZADA)
 
 require('dotenv').config();
 
@@ -94,7 +94,6 @@ if (NODE_ENV === 'production') {
         process.exit(1);
     }
 } else {
-    // En desarrollo, solo mostrar warnings
     const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'REFRESH_JWT_SECRET'];
     requiredEnvVars.forEach(envVar => { 
         if (!process.env[envVar]) { 
@@ -122,11 +121,16 @@ if (process.env.DATABASE_URL) {
         .then(async () => {
             logger.info('Conexión a PostgreSQL exitosa');
 
-            // Verificar que existan tablas clave; si no, ejecutar esquema automáticamente
+            // Verificar que existan tablas clave (NUEVA ESTRUCTURA)
             try {
-                const check = await pool.query("SELECT COUNT(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users','quejas_retraso','resoluciones')");
+                const check = await pool.query(`
+                    SELECT COUNT(*)::int AS count 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name IN ('users', 'quejas', 'resoluciones', 'detalles_retraso')
+                `);
                 const count = check.rows?.[0]?.count || 0;
-                if (count < 3) {
+                if (count < 4) {
                     logger.warn('Tablas clave no encontradas. Ejecutando esquema para inicializar la base de datos...');
                     const schemaPath = path.join(__dirname, 'database', 'schema.sql');
                     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
@@ -145,48 +149,103 @@ if (process.env.DATABASE_URL) {
     logger.warn('DATABASE_URL no definida. La aplicación funcionará sin base de datos.');
 }
 
-// --- Configuración de Quejas ---
+// --- Configuración de Quejas (NUEVA ESTRUCTURA NORMALIZADA) ---
+
+// Tablas permitidas para validación
 const ALLOWED_TABLES = {
-    'quejas_retraso': true,
-    'quejas_mal_trato': true,
-    'quejas_inseguridad': true,
-    'quejas_unidad_mal_estado': true,
-    'quejas_otro': true
+    'quejas': true,
+    'detalles_retraso': true,
+    'detalles_mal_trato': true,
+    'detalles_inseguridad': true,
+    'detalles_unidad_mal_estado': true,
+    'detalles_otro': true,
+    'resoluciones': true
 };
 
+// Mapeo de tipos del formulario a tipos de la BD
+const TIPO_MAPPING = {
+    'Retraso': 'retraso',
+    'Mal trato': 'mal_trato',
+    'Inseguridad': 'inseguridad',
+    'Unidad en mal estado': 'unidad_mal_estado',
+    'Otro': 'otro'
+};
+
+// Configuración de campos específicos por tipo
 const QUEJAS_CONFIG = {
     'retraso': { 
-        tableName: 'detalles_retraso', 
-        fields: ['detalles_retraso', 'direccion_subida', 'hora_programada', 'hora_llegada', 'metodo_transporte_alterno', 'monto_gastado', 'hora_llegada_planta'] 
+        tabla_detalles: 'detalles_retraso',
+        fields: [
+            'direccion_subida', 
+            'hora_programada', 
+            'hora_llegada', 
+            'hora_llegada_planta',
+            'detalles_retraso', 
+            'metodo_transporte_alterno', 
+            'monto_gastado'
+        ] 
     },
     'mal_trato': { 
-        tableName: 'detalles_mal_trato', 
-        fields: ['nombre_conductor_maltrato', 'detalles_maltrato'] 
+        tabla_detalles: 'detalles_mal_trato',
+        fields: [
+            'nombre_conductor_maltrato', 
+            'detalles_maltrato'
+        ] 
     },
     'inseguridad': { 
-        tableName: 'detalles_inseguridad', 
-        fields: ['detalles_inseguridad', 'ubicacion_inseguridad'] 
+        tabla_detalles: 'detalles_inseguridad',
+        fields: [
+            'ubicacion_inseguridad',
+            'detalles_inseguridad'
+        ] 
     },
     'unidad_mal_estado': { 
-        tableName: 'detalles_unidad_mal_estado', 
-        fields: ['numero_unidad_malestado', 'tipo_falla', 'detalles_malestado'] 
+        tabla_detalles: 'detalles_unidad_mal_estado',
+        fields: [
+            'numero_unidad_malestado', 
+            'tipo_falla', 
+            'detalles_malestado'
+        ] 
     },
     'otro': { 
-        tableName: 'detalles_otro', 
-        fields: ['detalles_otro'] 
+        tabla_detalles: 'detalles_otro',
+        fields: [
+            'detalles_otro'
+        ] 
     }
 };
 
-// --- VALIDACIÓN SIMPLIFICADA ---
+// Lista de tipos permitidos
+const TIPOS_PERMITIDOS = Object.keys(QUEJAS_CONFIG);
+
+// Mapeo de tipos antiguos a nuevos (para compatibilidad)
+const TIPO_MAPPING = {
+    'Retraso': 'retraso',
+    'Mal trato': 'mal_trato',
+    'Inseguridad': 'inseguridad',
+    'Unidad en mal estado': 'unidad_mal_estado',
+    'Otro': 'otro'
+};
+
+// --- VALIDACIÓN CON JOI ---
 const baseQuejaSchema = Joi.object({
     numero_empleado: Joi.string().required(),
     empresa: Joi.string().required(),
     ruta: Joi.string().allow(null, ''),
     colonia: Joi.string().allow(null, ''),
     turno: Joi.string().allow(null, ''),
-    tipo: Joi.string().valid(...Object.keys(QUEJAS_CONFIG)).required(),
-    latitud: Joi.number().allow(null, ''),
-    longitud: Joi.number().allow(null, ''),
+    tipo: Joi.string().valid(
+        'retraso', 'mal_trato', 'inseguridad', 'unidad_mal_estado', 'otro',
+        'Retraso', 'Mal trato', 'Inseguridad', 'Unidad en mal estado', 'Otro'
+    ).required(),
+    latitud: Joi.alternatives().try(
+        Joi.number(),
+        Joi.string().allow(null, '')
+    ),
+    longitud: Joi.alternatives().try(
+        Joi.number(),
+        Joi.string().allow(null, '')
+    ),
     numero_unidad: Joi.string().allow(null, '')
 });
 
@@ -197,7 +256,10 @@ const quejaSchemas = {
         hora_programada: Joi.string().allow(null, ''),
         hora_llegada: Joi.string().allow(null, ''),
         metodo_transporte_alterno: Joi.string().allow(null, ''),
-        monto_gastado: Joi.number().allow(null, ''),
+        monto_gastado: Joi.alternatives().try(
+            Joi.number(),
+            Joi.string().allow(null, '')
+        ),
         hora_llegada_planta: Joi.string().allow(null, '')
     }),
     'mal_trato': baseQuejaSchema.keys({
@@ -217,6 +279,13 @@ const quejaSchemas = {
         detalles_otro: Joi.string().allow(null, '')
     })
 };
+
+// Alias para tipos del formulario (con espacios/mayúsculas)
+quejaSchemas['Retraso'] = quejaSchemas['retraso'];
+quejaSchemas['Mal trato'] = quejaSchemas['mal_trato'];
+quejaSchemas['Inseguridad'] = quejaSchemas['inseguridad'];
+quejaSchemas['Unidad en mal estado'] = quejaSchemas['unidad_mal_estado'];
+quejaSchemas['Otro'] = quejaSchemas['otro'];
 
 // --- MIDDLEWARE DE AUTENTICACIÓN ---
 const { authenticateToken, requireRole, verifyRefreshToken } = require('./middleware/auth');
@@ -247,7 +316,7 @@ app.get('/health-simple', (req, res) => {
         status: 'ok',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        version: '6.4.0'
+        version: '7.0.0'
     });
 });
 
@@ -259,7 +328,7 @@ app.get('/health', async (req, res) => {
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
             environment: NODE_ENV,
-            version: '6.4.0',
+            version: '7.0.0',
             services: {
                 database: 'unknown',
                 memory: {
@@ -270,7 +339,6 @@ app.get('/health', async (req, res) => {
             }
         };
 
-        // Verificar conexión a la base de datos con timeout
         if (pool) {
             try {
                 const dbPromise = pool.query('SELECT 1');
@@ -295,8 +363,6 @@ app.get('/health', async (req, res) => {
             };
         }
 
-        // En producción, siempre devolver 200 para el health check básico
-        // El status 'degraded' indica problemas pero no impide el funcionamiento
         const statusCode = NODE_ENV === 'production' ? 200 : 
                         (healthCheck.status === 'healthy' ? 200 : 503);
         
@@ -315,11 +381,23 @@ app.get('/health', async (req, res) => {
 // --- RUTAS DE AUTENTICACIÓN ---
 const authRoutes = require('./routes/auth.routes')(pool, logger, loginLimiter, authenticateToken, verifyRefreshToken);
 app.use('/api/auth', authRoutes);
-// Alias para compatibilidad: permitir /api/login, /api/logout, /api/refresh-token
 app.use('/api', authRoutes);
 
 // --- RUTAS DE QUEJAS ---
-const quejasRoutes = require('./routes/quejas.routes.js')(pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend, puppeteer, fs, path);
+const quejasRoutes = require('./routes/quejas.routes.js')(
+    pool, 
+    logger, 
+    quejaLimiter, 
+    authenticateToken, 
+    requireRole, 
+    quejaSchemas, 
+    QUEJAS_CONFIG, 
+    ALLOWED_TABLES, 
+    generarFolio, 
+    sanitizeForFrontend,
+    TIPO_MAPPING,
+    TIPOS_PERMITIDOS
+);
 app.use('/', quejasRoutes);
 
 // --- Middlewares de Manejo de Errores (deben ir al final) ---
@@ -328,7 +406,7 @@ app.use(errorHandler);
 
 // --- Arranque del Servidor ---
 const server = app.listen(PORT, () => {
-    logger.info(`Servidor de Quejas v6.4 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
+    logger.info(`Servidor de Quejas v7.0 iniciado en puerto ${PORT} en modo ${NODE_ENV}`);
 });
 
 // --- Manejo de Señales Graceful Shutdown ---
@@ -336,10 +414,14 @@ const gracefulShutdown = (signal) => {
     logger.info(`Recibida señal ${signal}. Iniciando cierre elegante...`);
     server.close(() => {
         logger.info('Servidor HTTP cerrado.');
-        pool.end(() => {
-            logger.info('Pool de base de datos cerrado.');
+        if (pool) {
+            pool.end(() => {
+                logger.info('Pool de base de datos cerrado.');
+                process.exit(0);
+            });
+        } else {
             process.exit(0);
-        });
+        }
     });
 };
 
