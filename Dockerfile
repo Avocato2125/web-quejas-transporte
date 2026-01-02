@@ -29,12 +29,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Crear usuario no-root para seguridad
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN groupadd -r appuser && useradd -r -m -g appuser appuser
 
 WORKDIR /app
 
 # Cambiar propiedad del directorio de trabajo
 RUN chown -R appuser:appuser /app
+
+# Configurar npm para usar cache en /tmp
+ENV NPM_CONFIG_CACHE=/tmp/.npm
 
 # Copiar archivos de dependencias
 COPY package*.json ./
