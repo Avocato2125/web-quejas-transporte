@@ -155,24 +155,24 @@ const ALLOWED_TABLES = {
 };
 
 const QUEJAS_CONFIG = {
-    'Retraso': { 
-        tableName: 'quejas_retraso', 
+    'retraso': { 
+        tableName: 'detalles_retraso', 
         fields: ['detalles_retraso', 'direccion_subida', 'hora_programada', 'hora_llegada', 'metodo_transporte_alterno', 'monto_gastado', 'hora_llegada_planta'] 
     },
-    'Mal trato': { 
-        tableName: 'quejas_mal_trato', 
+    'mal_trato': { 
+        tableName: 'detalles_mal_trato', 
         fields: ['nombre_conductor_maltrato', 'detalles_maltrato'] 
     },
-    'Inseguridad': { 
-        tableName: 'quejas_inseguridad', 
+    'inseguridad': { 
+        tableName: 'detalles_inseguridad', 
         fields: ['detalles_inseguridad', 'ubicacion_inseguridad'] 
     },
-    'Unidad en mal estado': { 
-        tableName: 'quejas_unidad_mal_estado', 
+    'unidad_mal_estado': { 
+        tableName: 'detalles_unidad_mal_estado', 
         fields: ['numero_unidad_malestado', 'tipo_falla', 'detalles_malestado'] 
     },
-    'Otro': { 
-        tableName: 'quejas_otro', 
+    'otro': { 
+        tableName: 'detalles_otro', 
         fields: ['detalles_otro'] 
     }
 };
@@ -191,7 +191,7 @@ const baseQuejaSchema = Joi.object({
 });
 
 const quejaSchemas = {
-    'Retraso': baseQuejaSchema.keys({
+    'retraso': baseQuejaSchema.keys({
         detalles_retraso: Joi.string().allow(null, ''),
         direccion_subida: Joi.string().allow(null, ''),
         hora_programada: Joi.string().allow(null, ''),
@@ -200,20 +200,20 @@ const quejaSchemas = {
         monto_gastado: Joi.number().allow(null, ''),
         hora_llegada_planta: Joi.string().allow(null, '')
     }),
-    'Mal trato': baseQuejaSchema.keys({
+    'mal_trato': baseQuejaSchema.keys({
         nombre_conductor_maltrato: Joi.string().allow(null, ''),
         detalles_maltrato: Joi.string().allow(null, '')
     }),
-    'Inseguridad': baseQuejaSchema.keys({
+    'inseguridad': baseQuejaSchema.keys({
         detalles_inseguridad: Joi.string().allow(null, ''),
         ubicacion_inseguridad: Joi.string().allow(null, '')
     }),
-    'Unidad en mal estado': baseQuejaSchema.keys({
+    'unidad_mal_estado': baseQuejaSchema.keys({
         numero_unidad_malestado: Joi.string().allow(null, ''),
         tipo_falla: Joi.string().allow(null, ''),
         detalles_malestado: Joi.string().allow(null, '')
     }),
-    'Otro': baseQuejaSchema.keys({
+    'otro': baseQuejaSchema.keys({
         detalles_otro: Joi.string().allow(null, '')
     })
 };
@@ -298,7 +298,7 @@ app.get('/health', async (req, res) => {
         // En producción, siempre devolver 200 para el health check básico
         // El status 'degraded' indica problemas pero no impide el funcionamiento
         const statusCode = NODE_ENV === 'production' ? 200 : 
-                          (healthCheck.status === 'healthy' ? 200 : 503);
+                        (healthCheck.status === 'healthy' ? 200 : 503);
         
         res.status(statusCode).json(healthCheck);
 

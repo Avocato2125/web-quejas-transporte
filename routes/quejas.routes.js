@@ -7,18 +7,22 @@ const puppeteer = require('puppeteer');
 
 module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend) => {
 
-    // ENVÍO DE QUEJA CORREGIDO
+    // ENVÍO DE QUEJA - NUEVA ESTRUCTURA NORMALIZADA
     router.post('/enviar-queja', quejaLimiter, async (req, res) => {
         logger.debug('Recibiendo queja:', req.body);
+        
+        // Iniciar cliente para transacción
+        const client = await pool.connect();
         
         try {
             const { tipo } = req.body;
             
             // Validar tipo de queja
-            if (!tipo || !QUEJAS_CONFIG[tipo]) {
+            const tiposPermitidos = ['retraso', 'mal_trato', 'inseguridad', 'unidad_mal_estado', 'otro'];
+            if (!tipo || !tiposPermitidos.includes(tipo)) {
                 return res.status(400).json({ 
                     success: false, 
-                    error: 'Tipo de queja no válido. Tipos permitidos: ' + Object.keys(QUEJAS_CONFIG).join(', ')
+                    error: 'Tipo de queja no válido. Tipos permitidos: ' + tiposPermitidos.join(', ')
                 });
             }
 
@@ -36,63 +40,157 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             }
 
             const { numero_empleado, empresa, ruta, colonia, turno, latitud, longitud, numero_unidad, ...detalles } = req.body;
-            const config = QUEJAS_CONFIG[tipo];
             
-            // Validar tabla permitida
-            if (!ALLOWED_TABLES[config.tableName]) {
-                throw new Error(`Tabla no permitida: ${config.tableName}`);
-            }
-
             const nuevoFolio = generarFolio();
             logger.debug('Folio generado:', nuevoFolio);
 
-            // Conversión de horas a timestamps
-            const today = new Date().toISOString().split('T')[0];
-            const horaFields = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
-            
-            horaFields.forEach(field => {
-                if (detalles[field] && detalles[field] !== '') {
-                    if (detalles[field].match(/^\d{1,2}:\d{2}$/)) {
-                        detalles[field] = `${today} ${detalles[field]}:00`;
-                        logger.debug(`Convertido ${field}: ${detalles[field]}`);
+            // Conversión de horas a timestamps (solo para retraso)
+            if (tipo === 'retraso') {
+                const today = new Date().toISOString().split('T')[0];
+                const horaFields = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
+                
+                horaFields.forEach(field => {
+                    if (detalles[field] && detalles[field] !== '') {
+                        if (detalles[field].match(/^\d{1,2}:\d{2}$/)) {
+                            detalles[field] = `${today} ${detalles[field]}:00`;
+                            logger.debug(`Convertido ${field}: ${detalles[field]}`);
+                        }
                     }
-                }
-            });
+                });
+            }
 
-            // Preparar datos para insertar
-            const commonFields = ['numero_empleado', 'empresa', 'ruta', 'colonia', 'turno', 'tipo', 'latitud', 'longitud', 'numero_unidad', 'folio'];
-            const specificFields = config.fields;
-            const allFieldNames = [...commonFields, ...specificFields];
+            // ============================================
+            // INICIAR TRANSACCIÓN
+            // ============================================
+            await client.query('BEGIN');
+
+            // ============================================
+            // INSERT 1: Tabla principal "quejas"
+            // ============================================
+            const queryQuejas = `
+                INSERT INTO quejas (
+                    folio, numero_empleado, empresa, ruta, colonia, turno,
+                    tipo, latitud, longitud, numero_unidad, ip_address, user_agent
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                RETURNING id
+            `;
             
-            const allValues = [
-                numero_empleado, 
-                empresa, 
-                ruta || null, 
-                colonia || null, 
-                turno || null, 
-                tipo,
-                latitud || null, 
-                longitud || null, 
-                numero_unidad || null, 
+            const valuesQuejas = [
                 nuevoFolio,
-                ...specificFields.map(field => detalles[field] || null)
+                numero_empleado,
+                empresa,
+                ruta || null,
+                colonia || null,
+                turno || null,
+                tipo,
+                latitud || null,
+                longitud || null,
+                numero_unidad || null,
+                req.ip || null,
+                req.get('User-Agent') || null
             ];
 
-            logger.debug('Campos:', allFieldNames);
-            logger.debug('Valores:', allValues);
+            logger.debug('Query quejas:', queryQuejas);
+            logger.debug('Values quejas:', valuesQuejas);
 
-            const queryFields = allFieldNames.join(', ');
-            const queryValuePlaceholders = allFieldNames.map((_, i) => `$${i + 1}`).join(', ');
-            const query = `INSERT INTO ${config.tableName} (${queryFields}) VALUES (${queryValuePlaceholders}) RETURNING id;`;
-            
-            logger.debug('Query SQL:', query);
-            
-            const result = await pool.query(query, allValues);
+            const resultQuejas = await client.query(queryQuejas, valuesQuejas);
+            const quejaId = resultQuejas.rows[0].id;
+
+            logger.debug('Queja insertada con ID:', quejaId);
+
+            // ============================================
+            // INSERT 2: Tabla de detalles según el tipo
+            // ============================================
+            let queryDetalles;
+            let valuesDetalles;
+
+            switch (tipo) {
+                case 'retraso':
+                    queryDetalles = `
+                        INSERT INTO detalles_retraso (
+                            queja_id, direccion_subida, hora_programada, hora_llegada,
+                            hora_llegada_planta, detalles_retraso, metodo_transporte_alterno, monto_gastado
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    `;
+                    valuesDetalles = [
+                        quejaId,
+                        detalles.direccion_subida || null,
+                        detalles.hora_programada || null,
+                        detalles.hora_llegada || null,
+                        detalles.hora_llegada_planta || null,
+                        detalles.detalles_retraso || null,
+                        detalles.metodo_transporte_alterno || null,
+                        detalles.monto_gastado || null
+                    ];
+                    break;
+
+                case 'inseguridad':
+                    queryDetalles = `
+                        INSERT INTO detalles_inseguridad (
+                            queja_id, ubicacion_inseguridad, detalles_inseguridad
+                        ) VALUES ($1, $2, $3)
+                    `;
+                    valuesDetalles = [
+                        quejaId,
+                        detalles.ubicacion_inseguridad || null,
+                        detalles.detalles_inseguridad || null
+                    ];
+                    break;
+
+                case 'mal_trato':
+                    queryDetalles = `
+                        INSERT INTO detalles_mal_trato (
+                            queja_id, nombre_conductor_maltrato, detalles_maltrato
+                        ) VALUES ($1, $2, $3)
+                    `;
+                    valuesDetalles = [
+                        quejaId,
+                        detalles.nombre_conductor_maltrato || null,
+                        detalles.detalles_maltrato || null
+                    ];
+                    break;
+
+                case 'unidad_mal_estado':
+                    queryDetalles = `
+                        INSERT INTO detalles_unidad_mal_estado (
+                            queja_id, numero_unidad_malestado, tipo_falla, detalles_malestado
+                        ) VALUES ($1, $2, $3, $4)
+                    `;
+                    valuesDetalles = [
+                        quejaId,
+                        detalles.numero_unidad_malestado || null,
+                        detalles.tipo_falla || null,
+                        detalles.detalles_malestado || null
+                    ];
+                    break;
+
+                case 'otro':
+                    queryDetalles = `
+                        INSERT INTO detalles_otro (
+                            queja_id, detalles_otro
+                        ) VALUES ($1, $2)
+                    `;
+                    valuesDetalles = [
+                        quejaId,
+                        detalles.detalles_otro || null
+                    ];
+                    break;
+            }
+
+            logger.debug('Query detalles:', queryDetalles);
+            logger.debug('Values detalles:', valuesDetalles);
+
+            await client.query(queryDetalles, valuesDetalles);
+
+            // ============================================
+            // CONFIRMAR TRANSACCIÓN
+            // ============================================
+            await client.query('COMMIT');
             
             logger.info('Queja registrada exitosamente', { 
                 folio: nuevoFolio, 
-                tabla: config.tableName, 
-                id: result.rows[0].id,
+                tipo: tipo,
+                id: quejaId,
                 ip: req.ip
             });
             
@@ -103,6 +201,11 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             });
             
         } catch (error) {
+            // ============================================
+            // REVERTIR SI HAY ERROR
+            // ============================================
+            await client.query('ROLLBACK');
+            
             logger.error('Error completo:', error);
             logger.error('Error al procesar la queja:', { 
                 error: error.message, 
@@ -115,6 +218,11 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                 success: false, 
                 error: 'Error interno del servidor: ' + error.message 
             });
+        } finally {
+            // ============================================
+            // LIBERAR CONEXIÓN
+            // ============================================
+            client.release();
         }
     });
 
@@ -126,28 +234,41 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             const limitNum = Math.min(parseInt(limit, 10), 100);
             const offset = (pageNum - 1) * limitNum;
 
-            // Usar consulta directa a las tablas
-            const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
+            // Usar consulta con JOIN a las nuevas tablas
+            let query;
+            let params;
             
-            let queries;
             if (estado) {
-                // Filtrar por estado específico
-                queries = tableNames.map(tableName => 
-                    pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} WHERE estado_queja = $1 ORDER BY fecha_creacion DESC LIMIT $2 OFFSET $3`,
-                    [estado, limitNum, offset])
-                );
+                query = `
+                    SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
+                    FROM quejas q
+                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+                    WHERE q.estado = $1
+                    ORDER BY q.fecha_creacion DESC
+                    LIMIT $2 OFFSET $3
+                `;
+                params = [estado, limitNum, offset];
             } else {
-                // Obtener todas las quejas sin filtrar por estado
-                queries = tableNames.map(tableName => 
-                    pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} ORDER BY fecha_creacion DESC LIMIT $1 OFFSET $2`,
-                    [limitNum, offset])
-                );
+                query = `
+                    SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
+                    FROM quejas q
+                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+                    ORDER BY q.fecha_creacion DESC
+                    LIMIT $1 OFFSET $2
+                `;
+                params = [limitNum, offset];
             }
 
-            const results = await Promise.all(queries);
-            const allQuejas = results.flatMap(result => result.rows);
-            
-            allQuejas.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+            const result = await pool.query(query, params);
+            const allQuejas = result.rows;
 
             res.status(200).json({
                 success: true,
@@ -171,23 +292,40 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
 
             const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
 
-            let queries;
+            let query;
+            let params;
+            
             if (estado) {
-                queries = tableNames.map(tableName => 
-                    pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} WHERE estado_queja = $1 ORDER BY fecha_creacion DESC LIMIT $2 OFFSET $3`,
-                    [estado, limitNum, offset])
-                );
+                query = `
+                    SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
+                    FROM quejas q
+                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+                    WHERE q.estado = $1
+                    ORDER BY q.fecha_creacion DESC
+                    LIMIT $2 OFFSET $3
+                `;
+                params = [estado, limitNum, offset];
             } else {
-                queries = tableNames.map(tableName => 
-                    pool.query(`SELECT *, '${tableName}' as tabla_origen FROM ${tableName} ORDER BY fecha_creacion DESC LIMIT $1 OFFSET $2`,
-                    [limitNum, offset])
-                );
+                query = `
+                    SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
+                    FROM quejas q
+                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+                    ORDER BY q.fecha_creacion DESC
+                    LIMIT $1 OFFSET $2
+                `;
+                params = [limitNum, offset];
             }
 
-            const results = await Promise.all(queries);
-            const allQuejas = results.flatMap(result => result.rows);
-
-            allQuejas.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+            const result = await pool.query(query, params);
+            const allQuejas = result.rows;
 
             res.status(200).json({
                 success: true,
@@ -206,19 +344,20 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         const { folio } = req.params;
         
         try {
-            // Buscar la queja en todas las tablas
-            const tableNames = Object.values(QUEJAS_CONFIG).map(c => c.tableName);
-            let queja = null;
-            let tablaOrigen = null;
-            
-            for (const tableName of tableNames) {
-                const result = await pool.query(`SELECT * FROM ${tableName} WHERE folio = $1`, [folio]);
-                if (result.rows.length > 0) {
-                    queja = result.rows[0];
-                    tablaOrigen = tableName;
-                    break;
-                }
-            }
+            // Buscar la queja en la nueva estructura
+            const query = `
+                SELECT q.*, dr.*, di.*, dmt.*, dume.*, dot.*
+                FROM quejas q
+                LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+                LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+                LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+                LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+                LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+                WHERE q.folio = $1
+            `;
+            const result = await pool.query(query, [folio]);
+            const queja = result.rows[0];
+            const tablaOrigen = queja ? `quejas_${queja.tipo}` : null;
             
             if (!queja) {
                 return res.status(404).json({ success: false, error: 'Queja no encontrada' });
