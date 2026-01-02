@@ -5,7 +5,20 @@ const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
 
-module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend, TIPO_MAPPING, TIPOS_PERMITIDOS) => {
+module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, quejaSchemas, QUEJAS_CONFIG, ALLOWED_TABLES, generarFolio, sanitizeForFrontend) => {
+
+    // ============================================
+    // MAPEO DE TIPOS (formulario → base de datos)
+    // ============================================
+    const TIPO_MAPPING = {
+        'Retraso': 'retraso',
+        'Mal trato': 'mal_trato',
+        'Inseguridad': 'inseguridad',
+        'Unidad en mal estado': 'unidad_mal_estado',
+        'Otro': 'otro'
+    };
+
+    const TIPOS_PERMITIDOS = ['retraso', 'mal_trato', 'inseguridad', 'unidad_mal_estado', 'otro'];
 
     // ============================================
     // ENVÍO DE QUEJA - ESTRUCTURA NORMALIZADA
@@ -18,8 +31,14 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         try {
             let { tipo } = req.body;
             
+            // Guardar tipo original para logs
+            const tipoOriginal = tipo;
+            
             // Convertir tipo del formulario al tipo de BD
             tipo = TIPO_MAPPING[tipo] || tipo;
+            
+            logger.debug('Tipo original:', tipoOriginal);
+            logger.debug('Tipo convertido:', tipo);
             
             // Validar tipo de queja
             if (!tipo || !TIPOS_PERMITIDOS.includes(tipo)) {
@@ -29,9 +48,11 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                 });
             }
 
-            // Validar con esquema (usar el tipo mapeado o el original)
-            const schemaKey = Object.keys(TIPO_MAPPING).find(k => TIPO_MAPPING[k] === tipo) || tipo;
-            const schema = quejaSchemas[schemaKey] || quejaSchemas[tipo];
+            // Actualizar el tipo en req.body para la validación
+            req.body.tipo = tipo;
+
+            // Validar con esquema Joi
+            const schema = quejaSchemas[tipoOriginal] || quejaSchemas[tipo];
             
             if (schema) {
                 const { error } = schema.validate(req.body, { allowUnknown: true });
@@ -175,6 +196,9 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                         detalles.detalles_otro || null
                     ];
                     break;
+                
+                default:
+                    throw new Error(`Tipo de queja no soportado: ${tipo}`);
             }
 
             logger.debug('Query detalles:', queryDetalles);
@@ -221,7 +245,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
     // ============================================
     // FUNCIÓN AUXILIAR: Obtener queja con detalles
     // ============================================
-    async function obtenerQuejaCompleta(pool, folio) {
+    async function obtenerQuejaCompleta(folio) {
         const query = `
             SELECT 
                 q.*,
@@ -241,6 +265,32 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             WHERE q.folio = $1
         `;
         const result = await pool.query(query, [folio]);
+        return result.rows[0] || null;
+    }
+
+    // ============================================
+    // FUNCIÓN AUXILIAR: Obtener queja por ID
+    // ============================================
+    async function obtenerQuejaPorId(id) {
+        const query = `
+            SELECT 
+                q.*,
+                dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
+                dr.hora_llegada_planta, dr.detalles_retraso, 
+                dr.metodo_transporte_alterno, dr.monto_gastado,
+                di.ubicacion_inseguridad, di.detalles_inseguridad,
+                dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
+                dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
+                dot.detalles_otro
+            FROM quejas q
+            LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+            LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+            LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+            LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+            LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+            WHERE q.id = $1
+        `;
+        const result = await pool.query(query, [id]);
         return result.rows[0] || null;
     }
 
@@ -324,10 +374,105 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         }
     });
 
-    // Alias para compatibilidad
-    router.get('/api/quejas', authenticateToken, async (req, res, next) => {
-        req.url = '/quejas';
-        router.handle(req, res, next);
+    // Alias para compatibilidad con frontend
+    router.get('/api/quejas', authenticateToken, async (req, res) => {
+        try {
+            const { page = 1, limit = 50, estado } = req.query;
+            const pageNum = parseInt(page, 10);
+            const limitNum = Math.min(parseInt(limit, 10), 100);
+            const offset = (pageNum - 1) * limitNum;
+
+            let query;
+            let countQuery;
+            let params;
+            
+            if (estado) {
+                query = `
+                    SELECT 
+                        q.*,
+                        dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
+                        dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
+                        di.ubicacion_inseguridad, di.detalles_inseguridad,
+                        dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
+                        dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
+                        dot.detalles_otro
+                    FROM quejas q
+                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+                    WHERE q.estado_queja = $1
+                    ORDER BY q.fecha_creacion DESC
+                    LIMIT $2 OFFSET $3
+                `;
+                countQuery = `SELECT COUNT(*) FROM quejas WHERE estado_queja = $1`;
+                params = [estado, limitNum, offset];
+            } else {
+                query = `
+                    SELECT 
+                        q.*,
+                        dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
+                        dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
+                        di.ubicacion_inseguridad, di.detalles_inseguridad,
+                        dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
+                        dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
+                        dot.detalles_otro
+                    FROM quejas q
+                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+                    ORDER BY q.fecha_creacion DESC
+                    LIMIT $1 OFFSET $2
+                `;
+                countQuery = `SELECT COUNT(*) FROM quejas`;
+                params = [limitNum, offset];
+            }
+
+            const result = await pool.query(query, params);
+            const countResult = await pool.query(countQuery, estado ? [estado] : []);
+            const total = parseInt(countResult.rows[0].count, 10);
+
+            res.status(200).json({
+                success: true,
+                data: sanitizeForFrontend(result.rows),
+                pagination: { 
+                    page: pageNum, 
+                    limit: limitNum, 
+                    total: total,
+                    totalPages: Math.ceil(total / limitNum)
+                }
+            });
+
+        } catch (error) {
+            logger.error('Error al obtener las quejas (alias /api/quejas):', { error: error.message });
+            res.status(500).json({ success: false, error: 'Error al consultar la base de datos.' });
+        }
+    });
+
+    // ============================================
+    // OBTENER UNA QUEJA POR FOLIO
+    // ============================================
+    router.get('/queja/:folio', authenticateToken, async (req, res) => {
+        try {
+            const { folio } = req.params;
+            const queja = await obtenerQuejaCompleta(folio);
+            
+            if (!queja) {
+                return res.status(404).json({ success: false, error: 'Queja no encontrada' });
+            }
+            
+            res.status(200).json({
+                success: true,
+                data: sanitizeForFrontend(queja)
+            });
+            
+        } catch (error) {
+            logger.error('Error al obtener queja:', { error: error.message });
+            res.status(500).json({ success: false, error: 'Error al consultar la base de datos.' });
+        }
     });
 
     // ============================================
@@ -339,7 +484,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         
         try {
             // Buscar la queja
-            const queja = await obtenerQuejaCompleta(pool, folio);
+            const queja = await obtenerQuejaCompleta(folio);
             
             if (!queja) {
                 return res.status(404).json({ success: false, error: 'Queja no encontrada' });
@@ -469,7 +614,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         const { folio } = req.params;
         
         try {
-            const queja = await obtenerQuejaCompleta(pool, folio);
+            const queja = await obtenerQuejaCompleta(folio);
             
             if (!queja) {
                 return res.status(404).json({ success: false, error: 'Queja no encontrada' });
@@ -550,7 +695,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
         
         try {
             const { id, folio, resolucion, procedencia, estado = 'Revisada' } = req.body;
-            const responsable_id = req.user.id; // Usar el ID del usuario autenticado
+            const responsable_id = req.user.id;
 
             // Validar datos requeridos
             if (!id || !folio || !resolucion || !procedencia) {
@@ -625,6 +770,43 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             res.status(500).json({ success: false, error: 'Error interno del servidor.' });
         } finally {
             client.release();
+        }
+    });
+
+    // ============================================
+    // ESTADÍSTICAS DE QUEJAS
+    // ============================================
+    router.get('/quejas/stats', authenticateToken, async (req, res) => {
+        try {
+            const stats = await pool.query(`
+                SELECT 
+                    tipo,
+                    estado_queja,
+                    COUNT(*) as total
+                FROM quejas
+                GROUP BY tipo, estado_queja
+                ORDER BY tipo, estado_queja
+            `);
+
+            const totales = await pool.query(`
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE estado_queja = 'Pendiente') as pendientes,
+                    COUNT(*) FILTER (WHERE estado_queja = 'Revisada') as revisadas
+                FROM quejas
+            `);
+
+            res.status(200).json({
+                success: true,
+                data: {
+                    porTipoYEstado: stats.rows,
+                    totales: totales.rows[0]
+                }
+            });
+
+        } catch (error) {
+            logger.error('Error al obtener estadísticas:', { error: error.message });
+            res.status(500).json({ success: false, error: 'Error al obtener estadísticas.' });
         }
     });
 

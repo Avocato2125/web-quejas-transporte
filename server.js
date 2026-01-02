@@ -162,15 +162,6 @@ const ALLOWED_TABLES = {
     'resoluciones': true
 };
 
-// Mapeo de tipos del formulario a tipos de la BD
-const TIPO_MAPPING = {
-    'Retraso': 'retraso',
-    'Mal trato': 'mal_trato',
-    'Inseguridad': 'inseguridad',
-    'Unidad en mal estado': 'unidad_mal_estado',
-    'Otro': 'otro'
-};
-
 // Configuración de campos específicos por tipo
 const QUEJAS_CONFIG = {
     'retraso': { 
@@ -217,15 +208,6 @@ const QUEJAS_CONFIG = {
 
 // Lista de tipos permitidos
 const TIPOS_PERMITIDOS = Object.keys(QUEJAS_CONFIG);
-
-// Mapeo de tipos antiguos a nuevos (para compatibilidad)
-const TIPO_MAPPING = {
-    'Retraso': 'retraso',
-    'Mal trato': 'mal_trato',
-    'Inseguridad': 'inseguridad',
-    'Unidad en mal estado': 'unidad_mal_estado',
-    'Otro': 'otro'
-};
 
 // --- VALIDACIÓN CON JOI ---
 const baseQuejaSchema = Joi.object({
@@ -394,9 +376,7 @@ const quejasRoutes = require('./routes/quejas.routes.js')(
     QUEJAS_CONFIG, 
     ALLOWED_TABLES, 
     generarFolio, 
-    sanitizeForFrontend,
-    TIPO_MAPPING,
-    TIPOS_PERMITIDOS
+    sanitizeForFrontend
 );
 app.use('/', quejasRoutes);
 
