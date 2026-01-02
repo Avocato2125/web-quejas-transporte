@@ -147,213 +147,165 @@
             color: #059669;
         }
 
-        /* ===== RESPONSIVE DESIGN PARA MÓVILES ===== */
         @media (max-width: 768px) {
-            /* Header responsivo */
             .header {
                 flex-direction: column;
                 padding: 15px 20px;
                 gap: 15px;
             }
-            
             .header h1 {
                 font-size: 1.5em;
                 text-align: center;
                 margin-bottom: 10px;
             }
-            
             .search-container {
                 width: 100%;
                 max-width: 300px;
             }
-            
             .header > div:last-child {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 gap: 10px;
             }
-            
             #welcomeUser {
                 margin-right: 0 !important;
                 text-align: center;
             }
-            
-            /* Navegación de tabs responsiva */
             .tabs-nav {
                 padding: 0 10px;
                 overflow-x: auto;
                 white-space: nowrap;
                 -webkit-overflow-scrolling: touch;
             }
-            
             .tab-btn {
                 padding: 12px 15px;
                 font-size: 0.9em;
                 min-width: max-content;
             }
-            
-            /* Container principal */
             .dashboard-container {
                 padding: 10px;
                 margin: 10px auto;
             }
-            
-            /* Grid de quejas responsivo */
             .quejas-lista {
                 grid-template-columns: 1fr;
                 gap: 15px;
             }
-            
-            /* Tarjetas de quejas */
             .queja-tarjeta {
                 padding: 12px 15px;
             }
-            
             .tarjeta-header {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 5px;
             }
-            
             .tarjeta-folio {
                 font-size: 1.1em;
             }
-            
             .tarjeta-fecha {
                 font-size: 0.8em;
                 align-self: flex-end;
             }
-            
             .tarjeta-body p {
                 font-size: 0.9em;
                 margin: 4px 0;
             }
-            
-            /* Botones PDF en móvil */
             .pdf-button-direct,
             .pdf-button-view {
                 font-size: 0.75em;
                 padding: 8px 10px;
                 margin-top: 6px;
             }
-            
-            /* Modal responsivo */
             .modal-content {
                 width: 95%;
                 max-width: none;
                 margin: 10px;
                 max-height: 95vh;
             }
-            
             .modal-header {
                 padding: 15px;
             }
-            
             .modal-header h2 {
                 font-size: 1.2em;
             }
-            
             .modal-body {
                 padding: 15px;
                 grid-template-columns: 1fr;
                 gap: 10px;
             }
-            
             .detail-item {
                 padding: 8px;
             }
-            
             .modal-footer {
                 padding: 15px;
             }
-            
             .modal-footer textarea {
                 min-height: 60px;
                 font-size: 0.9em;
             }
-            
             .modal-footer button {
                 padding: 10px 20px;
                 font-size: 1em;
             }
-            
-            /* Procedencia responsiva */
             .procedencia-container {
                 flex-direction: column;
                 gap: 10px;
                 align-items: flex-start;
             }
-            
             .procedencia-option {
                 gap: 6px;
             }
-            
             .procedencia-option input[type="radio"] {
                 width: 16px;
                 height: 16px;
             }
-            
             .procedencia-option label {
                 font-size: 0.9em;
             }
         }
 
-        /* ===== TABLETS ===== */
         @media (min-width: 769px) and (max-width: 1024px) {
             .quejas-lista {
                 grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             }
-            
             .header {
                 padding: 20px 30px;
             }
-            
             .search-container {
                 width: 250px;
             }
-            
             .tabs-nav {
                 padding: 0 30px;
             }
         }
 
-        /* ===== PANTALLAS MUY PEQUEÑAS ===== */
         @media (max-width: 480px) {
             .header h1 {
                 font-size: 1.3em;
             }
-            
             .tab-btn {
                 padding: 10px 12px;
                 font-size: 0.8em;
             }
-            
             .queja-tarjeta {
                 padding: 10px 12px;
             }
-            
             .tarjeta-folio {
                 font-size: 1em;
             }
-            
             .tarjeta-body p {
                 font-size: 0.85em;
             }
-            
             .modal-content {
                 width: 98%;
                 margin: 5px;
             }
-            
             .modal-header {
                 padding: 12px;
             }
-            
             .modal-body {
                 padding: 12px;
             }
-            
             .modal-footer {
                 padding: 12px;
             }
@@ -377,16 +329,15 @@
         <button class="tab-btn active" data-tipo="Todos">Todas</button>
         <button class="tab-btn" data-tipo="Pendientes">Pendientes</button>
         <button class="tab-btn" data-tipo="Respondidas">Respondidas</button>
-        <button class="tab-btn" data-tipo="Retraso">Retrasos</button>
-        <button class="tab-btn" data-tipo="Mal trato">Mal Trato</button>
-        <button class="tab-btn" data-tipo="Inseguridad">Inseguridad</button>
-        <button class="tab-btn" data-tipo="Unidad en mal estado">Mal Estado</button>
-        <button class="tab-btn" data-tipo="Otro">Otras</button>
+        <button class="tab-btn" data-tipo="retraso">Retrasos</button>
+        <button class="tab-btn" data-tipo="mal_trato">Mal Trato</button>
+        <button class="tab-btn" data-tipo="inseguridad">Inseguridad</button>
+        <button class="tab-btn" data-tipo="unidad_mal_estado">Mal Estado</button>
+        <button class="tab-btn" data-tipo="otro">Otras</button>
     </nav>
 
     <main class="dashboard-container">
-        <div class="quejas-lista" id="quejasLista">
-            </div>
+        <div class="quejas-lista" id="quejasLista"></div>
     </main>
     
     <div class="modal-overlay" id="detailsModal">
@@ -401,11 +352,11 @@
                     <div class="procedencia-container">
                         <strong>¿La queja procede?</strong>
                         <div class="procedencia-option">
-                            <input type="radio" id="procedio" name="procedencia" value="Procedio" required>
+                            <input type="radio" id="procedio" name="procedencia" value="Procedió" required>
                             <label for="procedio">Procedió</label>
                         </div>
                         <div class="procedencia-option">
-                            <input type="radio" id="noProcedio" name="procedencia" value="No Procedio" required>
+                            <input type="radio" id="noProcedio" name="procedencia" value="No Procedió" required>
                             <label for="noProcedio">No Procedió</label>
                         </div>
                     </div>
@@ -423,8 +374,6 @@
     <script src="/js/sanitization.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- INICIO DE LA LÓGICA DE AUTENTICACIÓN ---
-        
         const accessToken = localStorage.getItem('accessToken');
         const user = JSON.parse(localStorage.getItem('user'));
 
@@ -443,8 +392,6 @@
             window.location.href = '/login.html';
         });
 
-        // --- FIN DE LA LÓGICA DE AUTENTICACIÓN ---
-
         const tabsNav = document.getElementById('tabsNav');
         const quejasLista = document.getElementById('quejasLista');
         const detailsModal = document.getElementById('detailsModal');
@@ -457,6 +404,15 @@
         
         let todasLasQuejas = [];
         let quejaActual = null;
+
+        // Mapeo de tipos para mostrar nombres amigables
+        const TIPO_DISPLAY = {
+            'retraso': 'Retraso',
+            'mal_trato': 'Mal Trato',
+            'inseguridad': 'Inseguridad',
+            'unidad_mal_estado': 'Unidad en Mal Estado',
+            'otro': 'Otro'
+        };
 
         async function fetchQuejas() {
             try {
@@ -482,26 +438,26 @@
                     throw new Error(quejasData.error || 'Error desconocido');
                 }
             } catch (error) {
-                setSafeContent(quejasLista, '<p class="empty-state">Error al cargar las quejas.</p>', true);
+                quejasLista.innerHTML = '<p class="empty-state">Error al cargar las quejas.</p>';
                 console.error(error);
             }
         }
 
         function renderQuejas() {
-            quejasLista.textContent = '';
+            quejasLista.innerHTML = '';
             const activeTab = document.querySelector('.tab-btn.active');
             const tipoFiltro = activeTab.dataset.tipo;
             const searchTerm = searchInput ? searchInput.value.trim().toUpperCase() : '';
             
             let quejasFiltradas = todasLasQuejas;
             
-            // Filtrar por estado
+            // Filtrar por estado o tipo
             if (tipoFiltro === 'Pendientes') {
                 quejasFiltradas = quejasFiltradas.filter(q => q.estado_queja === 'Pendiente');
             } else if (tipoFiltro === 'Respondidas') {
                 quejasFiltradas = quejasFiltradas.filter(q => q.estado_queja === 'Revisada');
             } else if (tipoFiltro !== 'Todos') {
-                // Filtrar por tipo de queja
+                // Filtrar por tipo de queja (ahora usa el formato de BD)
                 quejasFiltradas = quejasFiltradas.filter(q => q.tipo === tipoFiltro);
             }
             
@@ -512,7 +468,7 @@
             });
             
             if (quejasFinales.length === 0) {
-                setSafeContent(quejasLista, '<p class="empty-state">No se encontraron quejas que coincidan con los filtros.</p>', true);
+                quejasLista.innerHTML = '<p class="empty-state">No se encontraron quejas que coincidan con los filtros.</p>';
                 return;
             }
             
@@ -521,21 +477,18 @@
                 quejasLista.appendChild(tarjeta);
             });
             
-            // Agregar event listeners a los botones PDF directos
+            // Event listeners para botones PDF
             document.querySelectorAll('.pdf-button-direct').forEach(button => {
                 button.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Evitar que se abra el modal
-                    const folio = button.dataset.folio;
-                    generarPdfDirecto(folio);
+                    e.stopPropagation();
+                    generarPdfDirecto(button.dataset.folio);
                 });
             });
             
-            // Agregar event listeners a los botones de visualización
             document.querySelectorAll('.pdf-button-view').forEach(button => {
                 button.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Evitar que se abra el modal
-                    const folio = button.dataset.folio;
-                    verReporte(folio);
+                    e.stopPropagation();
+                    verReporte(button.dataset.folio);
                 });
             });
         }
@@ -544,128 +497,46 @@
             const tarjeta = document.createElement('div');
             tarjeta.className = queja.estado_queja === 'Revisada' ? 'queja-tarjeta queja-respondida' : 'queja-tarjeta';
             tarjeta.dataset.id = queja.id;
-            tarjeta.dataset.tabla = queja.tabla_origen;
-            // Manejo robusto de fechas - SIEMPRE respetar la hora exacta de la BD
-            let fechaFormateada = 'Fecha no disponible';
+            tarjeta.dataset.folio = queja.folio;
             
-            // Priorizar fecha_creacion de la base de datos (hora exacta)
+            // Formatear fecha
+            let fechaFormateada = 'Fecha no disponible';
             if (queja.fecha_creacion) {
-                console.log('Debug fecha_creacion para folio', queja.folio, ':', {
-                    valor: queja.fecha_creacion,
-                    tipo: typeof queja.fecha_creacion,
-                    queja_completa: queja
-                });
-                
                 try {
-                    // Asegurar que parseamos correctamente la fecha ISO
-                    let fecha;
-                    if (typeof queja.fecha_creacion === 'string') {
-                        fecha = new Date(queja.fecha_creacion);
-                    } else if (queja.fecha_creacion instanceof Date) {
-                        fecha = queja.fecha_creacion;
-                    } else {
-                        // Si es un objeto con propiedades de fecha
-                        fecha = new Date(queja.fecha_creacion);
-                    }
-                    
-                    console.log('Fecha parseada:', fecha, 'isValid:', !isNaN(fecha.getTime()));
-                    console.log('UTC String:', fecha.toUTCString());
-                    console.log('Local String:', fecha.toLocaleString());
-                    
+                    const fecha = new Date(queja.fecha_creacion);
                     if (!isNaN(fecha.getTime())) {
-                        // Mostrar solo la fecha (sin hora) en el dashboard
                         fechaFormateada = fecha.toLocaleDateString('es-MX', { 
                             dateStyle: 'medium',
                             timeZone: 'America/Mexico_City'
                         });
-                        console.log('Fecha formateada (solo fecha):', fechaFormateada);
                     }
                 } catch (error) {
-                    console.warn('Error parseando fecha_creacion:', queja.fecha_creacion, error);
-                }
-            } else {
-                console.log('No hay fecha_creacion para folio', queja.folio, ':', queja);
-            }
-            
-            // Solo si NO hay fecha_creacion, intentar otros campos
-            if (fechaFormateada === 'Fecha no disponible') {
-                const camposFechaAlternativos = ['fecha_actualizacion', 'created_at', 'updated_at'];
-                
-                for (const campo of camposFechaAlternativos) {
-                    if (queja[campo]) {
-                        try {
-                            const fecha = new Date(queja[campo]);
-                            if (!isNaN(fecha.getTime())) {
-                                fechaFormateada = fecha.toLocaleDateString('es-MX', { 
-                                    dateStyle: 'medium',
-                                    timeZone: 'America/Mexico_City'
-                                });
-                                break;
-                            }
-                        } catch (error) {
-                            console.warn(`Error parseando ${campo}:`, queja[campo], error);
-                        }
-                    }
+                    console.warn('Error parseando fecha:', error);
                 }
             }
             
-            // Solo como último recurso, extraer fecha del folio (sin hora)
-            if (fechaFormateada === 'Fecha no disponible' && queja.folio) {
-                const folioMatch = queja.folio.match(/QJ-(\d{4})(\d{2})(\d{2})-/);
-                if (folioMatch) {
-                    const [, year, month, day] = folioMatch;
-                    const fechaFolio = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                    fechaFormateada = fechaFolio.toLocaleDateString('es-MX', { 
-                        dateStyle: 'medium'
-                    });
-                }
-            }
+            // Obtener nombre amigable del tipo
+            const tipoDisplay = TIPO_DISPLAY[queja.tipo] || queja.tipo;
             
+            tarjeta.innerHTML = `
+                <div class="tarjeta-header">
+                    <span class="tarjeta-folio">${queja.folio || 'N/A'}</span>
+                    <span class="tarjeta-fecha">${fechaFormateada}</span>
+                </div>
+                <div class="tarjeta-body">
+                    <p><strong>Tipo:</strong> ${tipoDisplay}</p>
+                    <p><strong>Empleado:</strong> ${queja.numero_empleado || 'N/A'}</p>
+                    <p><strong>Empresa:</strong> ${queja.empresa || 'N/A'}</p>
+                    <p><strong>Estado:</strong> ${queja.estado_queja || 'Pendiente'}</p>
+                    ${queja.estado_queja === 'Revisada' ? `
+                        <div class="pdf-buttons">
+                            <button class="pdf-button-direct" data-folio="${queja.folio}">Descargar PDF</button>
+                            <button class="pdf-button-view" data-folio="${queja.folio}">Ver Reporte</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
             
-            // Crear elementos de forma segura
-            const header = createSafeElement('div', '', { class: 'tarjeta-header' });
-            const folio = createSafeElement('span', queja.folio || 'N/A', { class: 'tarjeta-folio' });
-            const fechaElement = createSafeElement('span', fechaFormateada, { class: 'tarjeta-fecha' });
-            header.appendChild(folio);
-            header.appendChild(fechaElement);
-            
-            const body = createSafeElement('div', '', { class: 'tarjeta-body' });
-            const tipo = createSafeElement('p', '', {});
-            setSafeContent(tipo, `<strong>Tipo:</strong> ${queja.tipo || 'N/A'}`, true);
-            
-            const empleado = createSafeElement('p', '', {});
-            setSafeContent(empleado, `<strong>Empleado:</strong> ${queja.numero_empleado || 'N/A'}`, true);
-            
-            const empresa = createSafeElement('p', '', {});
-            setSafeContent(empresa, `<strong>Empresa:</strong> ${queja.empresa || 'N/A'}`, true);
-            
-            const estado = createSafeElement('p', '', {});
-            setSafeContent(estado, `<strong>Estado:</strong> ${queja.estado_queja || 'Pendiente'}`, true);
-            
-            body.appendChild(tipo);
-            body.appendChild(empleado);
-            body.appendChild(empresa);
-            body.appendChild(estado);
-            
-            // Agregar botones PDF si está resuelta
-            if (queja.estado_queja === 'Revisada') {
-                const pdfButtons = createSafeElement('div', '', { class: 'pdf-buttons' });
-                const downloadBtn = createSafeElement('button', 'Descargar PDF', { 
-                    class: 'pdf-button-direct',
-                    'data-folio': queja.folio
-                });
-                const viewBtn = createSafeElement('button', 'Ver Reporte', { 
-                    class: 'pdf-button-view',
-                    'data-folio': queja.folio
-                });
-                
-                pdfButtons.appendChild(downloadBtn);
-                pdfButtons.appendChild(viewBtn);
-                body.appendChild(pdfButtons);
-            }
-            
-            tarjeta.appendChild(header);
-            tarjeta.appendChild(body);
             return tarjeta;
         }
         
@@ -674,13 +545,8 @@
             modalFolio.textContent = `Detalles Folio: ${queja.folio}`;
             modalBody.innerHTML = '';
             
-            // Limpiar formulario de resolución
             resolveForm.reset();
-            document.getElementById('resolucionText').value = '';
             
-            // Limpiar selección de procedencia
-            const procedenciaInputs = document.querySelectorAll('input[name="procedencia"]');
-            procedenciaInputs.forEach(input => input.checked = false);
             const etiquetas = {
                 numero_empleado: 'No. Empleado', empresa: 'Empresa', ruta: 'Ruta', numero_unidad: 'No. Unidad',
                 colonia: 'Colonia', turno: 'Turno', tipo: 'Tipo de Queja', folio: 'Folio',
@@ -692,9 +558,17 @@
                 ubicacion_inseguridad: 'Lugar del Incidente', numero_unidad_malestado: 'No. Unidad (Mal Estado)',
                 tipo_falla: 'Tipo de Falla', detalles_malestado: 'Detalles (Mal Estado)', detalles_otro: 'Detalles (Otro)'
             };
+            
             for(const key in queja) {
                 if(etiquetas[key] && queja[key] !== null && queja[key] !== '') {
                     let valor = queja[key];
+                    
+                    // Convertir tipo a nombre amigable
+                    if (key === 'tipo') {
+                        valor = TIPO_DISPLAY[valor] || valor;
+                    }
+                    
+                    // Formatear horas
                     if (['hora_programada', 'hora_llegada', 'hora_llegada_planta'].includes(key) && valor) {
                         try {
                             const fechaHora = new Date(valor);
@@ -702,9 +576,10 @@
                                 valor = fechaHora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
                             }
                         } catch (error) {
-                            console.warn('Error formateando hora:', valor, error);
+                            console.warn('Error formateando hora:', error);
                         }
                     }
+                    
                     const item = document.createElement('div');
                     item.className = 'detail-item';
                     item.innerHTML = `<strong>${etiquetas[key]}</strong> <span>${valor}</span>`;
@@ -713,31 +588,19 @@
                 }
             }
             
-            // Habilitar botón PDF solo si la queja está resuelta
+            // Configurar modal según estado
             if (queja.estado_queja === 'Revisada') {
                 generatePdfBtn.disabled = false;
-                generatePdfBtn.style.opacity = '1';
-                generatePdfBtn.style.cursor = 'pointer';
-                
-                // Ocultar formulario de resolución para quejas ya resueltas
-                resolveForm.style.display = 'none';
-                
-                // Mostrar mensaje de queja ya resuelta
-                const mensajeResuelta = document.createElement('div');
-                mensajeResuelta.innerHTML = `
-                    <div style="background-color: #D1FAE5; border: 1px solid #10B981; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                        <h3 style="color: #059669; margin: 0 0 10px 0;">Queja Ya Resuelta</h3>
-                        <p style="margin: 0; color: #065F46;">Esta queja ya ha sido atendida y resuelta.</p>
-                    </div>
-                `;
-                modalBody.appendChild(mensajeResuelta);
+                resolveForm.querySelector('button[type="submit"]').style.display = 'none';
+                resolveForm.querySelector('textarea').style.display = 'none';
+                resolveForm.querySelector('.procedencia-container').style.display = 'none';
+                resolveForm.querySelector('label[for="resolucionText"]').style.display = 'none';
             } else {
                 generatePdfBtn.disabled = true;
-                generatePdfBtn.style.opacity = '0.5';
-                generatePdfBtn.style.cursor = 'not-allowed';
-                
-                // Mostrar formulario de resolución para quejas pendientes
-                resolveForm.style.display = 'block';
+                resolveForm.querySelector('button[type="submit"]').style.display = 'block';
+                resolveForm.querySelector('textarea').style.display = 'block';
+                resolveForm.querySelector('.procedencia-container').style.display = 'flex';
+                resolveForm.querySelector('label[for="resolucionText"]').style.display = 'block';
             }
             
             detailsModal.classList.add('visible');
@@ -756,7 +619,6 @@
         }
 
         quejasLista.addEventListener('click', (e) => {
-            // No abrir modal si se hace clic en los botones PDF
             if (e.target.classList.contains('pdf-button-direct') || e.target.classList.contains('pdf-button-view')) {
                 return;
             }
@@ -764,8 +626,7 @@
             const tarjeta = e.target.closest('.queja-tarjeta');
             if (tarjeta) {
                 const quejaId = parseInt(tarjeta.dataset.id);
-                const tablaOrigen = tarjeta.dataset.tabla;
-                const quejaSeleccionada = todasLasQuejas.find(q => q.id === quejaId && q.tabla_origen === tablaOrigen);
+                const quejaSeleccionada = todasLasQuejas.find(q => q.id === quejaId);
                 if (quejaSeleccionada) abrirModalDetalles(quejaSeleccionada);
             }
         });
@@ -781,15 +642,14 @@
             }
             
             try {
-                const response = await fetch('/api/queja/resolver', {
+                const response = await fetch('/queja/resolver', {
                     method: 'PUT',
                     headers: { 
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${accessToken}`
                     },
                     body: JSON.stringify({ 
-                        id: quejaActual.id, 
-                        tabla_origen: quejaActual.tabla_origen, 
+                        id: quejaActual.id,
                         folio: quejaActual.folio,
                         resolucion: resolucion,
                         procedencia: procedencia.value
@@ -798,7 +658,6 @@
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error);
                 
-                // Mostrar mensaje de éxito
                 alert(`Queja resuelta exitosamente!\n\nProcedencia: ${procedencia.value}\nFolio: ${quejaActual.folio}`);
                 
                 detailsModal.classList.remove('visible');
@@ -812,18 +671,15 @@
         modalCloseBtn.addEventListener('click', () => detailsModal.classList.remove('visible'));
         detailsModal.addEventListener('click', (e) => { if(e.target === detailsModal) detailsModal.classList.remove('visible') });
 
-        // Event listener para generar PDF
         generatePdfBtn.addEventListener('click', async () => {
             if (!quejaActual) return;
-            
+            await generarPdfDirecto(quejaActual.folio);
+        });
+
+        async function generarPdfDirecto(folio) {
             try {
-                generatePdfBtn.disabled = true;
-                generatePdfBtn.textContent = 'Generando PDF...';
-                
-                const response = await fetch(`/api/queja/pdf/${quejaActual.folio}`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
+                const response = await fetch(`/queja/pdf/${folio}`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 
                 if (!response.ok) {
@@ -831,138 +687,39 @@
                     throw new Error(errorData.error || 'Error al generar PDF');
                 }
                 
-                // Crear blob y descargar
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `reporte-queja-${quejaActual.folio}.pdf`;
+                a.download = `reporte-queja-${folio}.pdf`;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
                 
-                alert('PDF generado y descargado exitosamente');
-                
             } catch (error) {
                 alert(`Error al generar PDF: ${error.message}`);
-            } finally {
-                generatePdfBtn.disabled = false;
-                generatePdfBtn.textContent = 'Generar PDF';
             }
-        });
+        }
 
-        // Función para generar PDF directamente desde la tarjeta
-        async function generarPdfDirecto(folio) {
-            try {
-                console.log('Generando PDF para folio:', folio);
-                
-                const response = await fetch(`/api/queja/pdf/${folio}`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error('Error del servidor:', errorData);
-                    throw new Error(errorData.error || `Error del servidor: ${response.status}`);
-                }
-                
-                // Verificar que la respuesta es un PDF
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/pdf')) {
-                    throw new Error('La respuesta no es un archivo PDF válido');
-                }
-                
-                // Crear blob y descargar
-                const blob = await response.blob();
-                console.log('PDF generado, tamaño:', blob.size, 'bytes');
-                
-                if (blob.size === 0) {
-                    throw new Error('El archivo PDF está vacío');
-                }
-                
-                // Verificar que el blob es realmente un PDF
-                const arrayBuffer = await blob.arrayBuffer();
-                const uint8Array = new Uint8Array(arrayBuffer);
-                const pdfHeader = String.fromCharCode(uint8Array[0], uint8Array[1], uint8Array[2], uint8Array[3]);
-                
-                if (pdfHeader !== '%PDF') {
-                    throw new Error('El archivo descargado no es un PDF válido');
-                }
-                
-                console.log('PDF válido detectado, iniciando descarga...');
-                
-                // Método 1: Descarga directa
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `reporte-queja-${folio}.pdf`;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                
-                // Limpiar después de un delay
-                setTimeout(() => {
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                }, 1000);
-                
-                // Método 2: Abrir en nueva ventana como respaldo
-                setTimeout(() => {
-                    const newWindow = window.open();
-                    if (newWindow) {
-                        newWindow.document.write(`
-                            <html>
-                                <head><title>Reporte de Queja - ${folio}</title></head>
-                                <body style="margin:0; padding:0;">
-                                    <embed src="${url}" type="application/pdf" width="100%" height="100%" />
-                                </body>
-                            </html>
-                        `);
-                    }
-                }, 500);
-                
-                alert('PDF generado y descargado exitosamente. También se abrió en una nueva ventana.');
-                
-            } catch (error) {
-                console.error('Error al generar PDF:', error);
-                alert(`Error al generar PDF: ${error.message}`);
-            }
-        };
-
-        // Función para ver reporte HTML directamente
         async function verReporte(folio) {
             try {
-                console.log('Abriendo reporte HTML para folio:', folio);
-                
-                const response = await fetch(`/api/queja/view/${folio}`, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
+                const response = await fetch(`/queja/view/${folio}`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    console.error('Error del servidor:', errorData);
-                    throw new Error(errorData.error || `Error del servidor: ${response.status}`);
+                    throw new Error(errorData.error || 'Error al obtener reporte');
                 }
                 
-                // Obtener el HTML del reporte
                 const htmlContent = await response.text();
-                
-                // Abrir en nueva ventana
-                const newWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+                const newWindow = window.open('', '_blank');
                 if (newWindow) {
                     newWindow.document.write(htmlContent);
                     newWindow.document.close();
-                } else {
-                    throw new Error('No se pudo abrir la nueva ventana. Verifica que los pop-ups estén permitidos.');
                 }
-                
             } catch (error) {
-                console.error('Error al abrir reporte:', error);
                 alert(`Error al abrir reporte: ${error.message}`);
             }
         }
