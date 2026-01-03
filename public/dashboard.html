@@ -549,6 +549,10 @@
                 tipo: 'Tipo de Queja', 
                 folio: 'Folio',
                 fecha_creacion: 'Fecha de Creación',
+                latitud: 'Latitud',
+                longitud: 'Longitud',
+                ip_address: 'Dirección IP',
+                user_agent: 'Navegador',
                 detalles_retraso: 'Detalles de Retraso', 
                 direccion_subida: 'Dirección de Recolección',
                 hora_programada: 'Hora Programada', 
@@ -566,36 +570,41 @@
                 detalles_otro: 'Detalles (Otro)'
             };
             
+            // Campos comunes (siempre mostrar primero)
+            const camposComunes = ['numero_empleado', 'empresa', 'ruta', 'numero_unidad', 'colonia', 'turno', 'tipo', 'folio', 'fecha_creacion', 'latitud', 'longitud'];
+            
+            // Campos específicos por tipo
+            const camposEspecificos = {
+                'retraso': ['detalles_retraso', 'direccion_subida', 'hora_programada', 'hora_llegada', 'metodo_transporte_alterno', 'monto_gastado', 'hora_llegada_planta'],
+                'mal_trato': ['nombre_conductor_maltrato', 'detalles_maltrato'],
+                'inseguridad': ['detalles_inseguridad', 'ubicacion_inseguridad'],
+                'unidad_mal_estado': ['numero_unidad_malestado', 'tipo_falla', 'detalles_malestado'],
+                'otro': ['detalles_otro']
+            };
+            
             // Campos que son horas (TIMESTAMP) - mostrar solo hora
             const camposHora = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
             
             // Campos que son fecha completa (fecha + hora)
             const camposFechaCompleta = ['fecha_creacion'];
             
-            for (const key in queja) {
+            // Función auxiliar para crear item
+            function crearItem(key, valor) {
+                const item = document.createElement('div');
+                item.className = 'detail-item';
+                item.innerHTML = `<strong>${etiquetas[key]}</strong> <span>${valor}</span>`;
+                if (key.includes('detalles')) item.classList.add('full-width');
+                return item;
+            }
+            
+            // Mostrar campos comunes
+            camposComunes.forEach(key => {
                 if (etiquetas[key] && queja[key] !== null && queja[key] !== '') {
                     let valor = queja[key];
                     
                     // Convertir tipo a nombre amigable
                     if (key === 'tipo') {
                         valor = TIPO_DISPLAY[valor] || valor;
-                    }
-                    
-                    // Formatear campos de HORA (mostrar solo hora)
-                    if (camposHora.includes(key) && valor) {
-                        try {
-                            const fechaHora = new Date(valor);
-                            if (!isNaN(fechaHora.getTime())) {
-                                valor = fechaHora.toLocaleTimeString('es-MX', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit', 
-                                    hour12: true,
-                                    timeZone: 'America/Mexico_City'
-                                });
-                            }
-                        } catch (error) {
-                            console.warn('Error formateando hora:', key, valor, error);
-                        }
                     }
                     
                     // Formatear campos de FECHA COMPLETA (fecha + hora)
@@ -618,6 +627,33 @@
                         }
                     }
                     
+                    modalBody.appendChild(crearItem(key, valor));
+                }
+            });
+            
+            // Mostrar campos específicos del tipo
+            const camposTipo = camposEspecificos[queja.tipo] || [];
+            camposTipo.forEach(key => {
+                if (etiquetas[key] && queja[key] !== null && queja[key] !== '') {
+                    let valor = queja[key];
+                    
+                    // Formatear campos de HORA (mostrar solo hora)
+                    if (camposHora.includes(key) && valor) {
+                        try {
+                            const fechaHora = new Date(valor);
+                            if (!isNaN(fechaHora.getTime())) {
+                                valor = fechaHora.toLocaleTimeString('es-MX', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit', 
+                                    hour12: true,
+                                    timeZone: 'America/Mexico_City'
+                                });
+                            }
+                        } catch (error) {
+                            console.warn('Error formateando hora:', key, valor, error);
+                        }
+                    }
+                    
                     // Formatear monto gastado como moneda
                     if (key === 'monto_gastado' && valor) {
                         try {
@@ -633,13 +669,9 @@
                         }
                     }
                     
-                    const item = document.createElement('div');
-                    item.className = 'detail-item';
-                    item.innerHTML = `<strong>${etiquetas[key]}</strong> <span>${valor}</span>`;
-                    if (key.includes('detalles')) item.classList.add('full-width');
-                    modalBody.appendChild(item);
+                    modalBody.appendChild(crearItem(key, valor));
                 }
-            }
+            });
             
             // Configurar modal según estado
             if (queja.estado_queja === 'Revisada') {
