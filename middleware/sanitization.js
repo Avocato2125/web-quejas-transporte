@@ -39,7 +39,6 @@ function sanitizeHTML(dirty) {
         return DOMPurify.sanitize(dirty, SANITIZE_CONFIG);
     } catch (error) {
         console.error('Error sanitizando HTML:', error);
-        // En caso de error, devolver texto plano
         return dirty.replace(/<[^>]*>/g, '');
     }
 }
@@ -54,7 +53,6 @@ function sanitizeText(text) {
         return '';
     }
     
-    // Eliminar todas las etiquetas HTML
     return text.replace(/<[^>]*>/g, '')
                .replace(/&lt;/g, '<')
                .replace(/&gt;/g, '>')
@@ -71,28 +69,74 @@ function sanitizeText(text) {
  * @returns {any} - Objeto sanitizado
  */
 function sanitizeObject(obj) {
+    // Valores nulos o undefined
     if (obj === null || obj === undefined) {
         return obj;
     }
     
+    // Strings - sanitizar
     if (typeof obj === 'string') {
         return sanitizeText(obj);
     }
     
+    // Números - devolver tal cual
+    if (typeof obj === 'number') {
+        return obj;
+    }
+    
+    // Booleanos - devolver tal cual
+    if (typeof obj === 'boolean') {
+        return obj;
+    }
+    
+    // Fechas - convertir a ISO string
+    if (obj instanceof Date) {
+        return obj.toISOString();
+    }
+    
+    // Arrays - sanitizar cada elemento
     if (Array.isArray(obj)) {
         return obj.map(item => sanitizeObject(item));
     }
     
+    // Objetos
     if (typeof obj === 'object') {
+        // Verificar si es un objeto Date-like (de PostgreSQL)
+        // pg puede devolver fechas como objetos con métodos toISOString
+        if (typeof obj.toISOString === 'function') {
+            try {
+                return obj.toISOString();
+            } catch (e) {
+                // Si falla, intentar convertir a string
+                return String(obj);
+            }
+        }
+        
+        // Verificar si es un objeto Date de PostgreSQL (tiene getTime)
+        if (typeof obj.getTime === 'function') {
+            try {
+                return new Date(obj.getTime()).toISOString();
+            } catch (e) {
+                return String(obj);
+            }
+        }
+        
+        // Verificar si tiene la estructura de un timestamp de pg
+        // Algunos drivers devuelven { value: '...', ... }
+        if (obj.value !== undefined && Object.keys(obj).length <= 3) {
+            return obj.value;
+        }
+        
+        // Objeto normal - sanitizar recursivamente
         const sanitized = {};
         for (const [key, value] of Object.entries(obj)) {
-            // Sanitizar también las claves
             const cleanKey = sanitizeText(key);
             sanitized[cleanKey] = sanitizeObject(value);
         }
         return sanitized;
     }
     
+    // Cualquier otro tipo - devolver tal cual
     return obj;
 }
 
