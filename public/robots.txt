@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+# Sitemap: https://plataforma-quejas-tecsa.up.railway.app/sitemap.xml

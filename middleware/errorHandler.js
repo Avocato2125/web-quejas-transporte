@@ -116,9 +116,11 @@ function errorHandler(err, req, res, next) {
  * @param {Function} next - Next middleware function
  */
 function notFoundHandler(req, res, next) {
-    const error = new Error(`Ruta no encontrada: ${req.method} ${req.url}`);
-    error.status = 404;
-    next(error);
+    // Responder directamente con 404 sin generar una excepción
+    res.status(404).json({
+        success: false,
+        message: `Ruta no encontrada: ${req.method} ${req.originalUrl}`
+    });
 }
 
 /**

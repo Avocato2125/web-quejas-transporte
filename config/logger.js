@@ -44,6 +44,13 @@ const mainLogger = winston.createLogger({
             filename: path.join('logs', 'combined.log'),
             maxsize: 5242880,
             maxFiles: 5
+        }),
+        // Transporte de Consola
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.colorize(), // Colores para leer mejor
+                winston.format.simple()
+            )
         })
     ]
 });
@@ -56,6 +63,12 @@ const securityLogger = winston.createLogger({
             filename: path.join('logs', 'security', 'security.log'),
             maxsize: 5242880,
             maxFiles: 5
+        }),
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.simple()
+            )
         })
     ]
 });
@@ -68,35 +81,18 @@ const auditLogger = winston.createLogger({
             filename: path.join('logs', 'audit', 'audit.log'),
             maxsize: 5242880,
             maxFiles: 5
+        }),
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.simple()
+            )
         })
     ]
 });
 
-// Agregar console transport en desarrollo
-if (process.env.NODE_ENV !== 'production') {
-    const consoleFormat = winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-    );
-    
-    [mainLogger, securityLogger, auditLogger].forEach(logger => {
-        logger.add(new winston.transports.Console({ format: consoleFormat }));
-    });
-}
-
-// En producción, agregar consola como respaldo para evitar quedar sin transports
-if (process.env.NODE_ENV === 'production') {
-    const consoleFormat = winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.json()
-    );
-    [mainLogger, securityLogger, auditLogger].forEach(logger => {
-        const hasTransports = logger.transports && logger.transports.length > 0;
-        if (!hasTransports) {
-            logger.add(new winston.transports.Console({ format: consoleFormat }));
-        }
-    });
-}
+// Los transportes de consola ya están incluidos en la configuración inicial
+// No es necesario agregar condicionalmente
 
 module.exports = {
     mainLogger,
