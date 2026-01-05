@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const winston = require('winston');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
+const compression = require('compression');
 
 // --- Configuración ---
 const validateEnv = require('./config/env.validation');
@@ -54,6 +55,14 @@ app.use(helmet({
     }
 }));
 
+app.use((req, res, next) => {
+    // Caché para recursos estáticos
+    if (req.url.match(/\.(css|js|png|jpg|jpeg|gif|ico|woff|woff2)$/)) {
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 día
+    }
+    next();
+});
+
 const allowedOrigins = [ 
     process.env.CORS_ORIGIN, 
     `https://${process.env.RAILWAY_STATIC_URL}` 
@@ -75,9 +84,15 @@ app.use(cors({
 const { configureRateLimiting } = require('./middleware/rateLimiting');
 const { loginLimiter, quejaLimiter, generalLimiter } = configureRateLimiting(logger);
 
+app.use(compression());
+
 // --- Middlewares Generales ---
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: '1d',  // Caché de 1 día
+    etag: true,
+    lastModified: true
+}));
 
 // --- Middlewares de Sanitización y Logging ---
 app.use(sanitizeRequestBody);
