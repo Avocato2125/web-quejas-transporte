@@ -413,23 +413,27 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- AUTENTICACIÓN ---
-        const accessToken = localStorage.getItem('accessToken');
-        const user = JSON.parse(localStorage.getItem('user'));
+        // --- AUTENTICACIÓN (DESACTIVADA TEMPORALMENTE PARA TESTING) ---
+        // const accessToken = localStorage.getItem('accessToken');
+        // const user = JSON.parse(localStorage.getItem('user'));
 
-        if (!accessToken) {
-            window.location.href = '/login.html';
-            return;
-        }
+        // if (!accessToken) {
+        //     window.location.href = '/login.html';
+        //     return;
+        // }
         
         const welcomeUserSpan = document.getElementById('welcomeUser');
         const logoutBtn = document.getElementById('logoutBtn');
-        if (user && user.username) {
-            welcomeUserSpan.textContent = `Bienvenido, ${user.username}`;
-        }
+        // if (user && user.username) {
+        //     welcomeUserSpan.textContent = `Bienvenido, ${user.username}`;
+        // } else {
+            welcomeUserSpan.textContent = `Modo Testing - Sin Autenticación`;
+        // }
         logoutBtn.addEventListener('click', () => {
-            localStorage.clear();
-            window.location.href = '/login.html';
+            // En modo testing, no hacer logout
+            alert('Modo Testing: Logout desactivado');
+            // localStorage.clear();
+            // window.location.href = '/login.html';
         });
 
         // --- ELEMENTOS DEL DOM ---
@@ -458,17 +462,17 @@
         // --- CARGAR QUEJAS ---
         async function fetchQuejas() {
             try {
-                const response = await fetch('/api/quejas', {
+                const response = await fetch('/api/quejas'/*, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`
                     }
-                });
+                }*/);
 
-                if (response.status === 401 || response.status === 403) {
-                    localStorage.clear();
-                    window.location.href = '/login.html';
-                    return;
-                }
+                // if (response.status === 401 || response.status === 403) {
+                //     localStorage.clear();
+                //     window.location.href = '/login.html';
+                //     return;
+                // }
                 
                 if (!response.ok) throw new Error('Error al cargar datos del servidor');
                 
@@ -789,8 +793,8 @@
                 const response = await fetch('/queja/resolver', {
                     method: 'PUT',
                     headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
+                        'Content-Type': 'application/json'/*,
+                        'Authorization': `Bearer ${accessToken}`*/
                     },
                     body: JSON.stringify({ 
                         id: quejaActual.id,
@@ -827,9 +831,9 @@
         // --- GENERAR PDF DIRECTO ---
         async function generarPdfDirecto(folio) {
             try {
-                const response = await fetch(`/queja/pdf/${folio}`, {
+                const response = await fetch(`/queja/pdf/${folio}`/*, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
+                }*/);
                 
                 if (!response.ok) {
                     const errorData = await response.json();
