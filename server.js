@@ -89,29 +89,16 @@ app.use(compression());
 // --- Middlewares Generales ---
 app.use(express.json({ limit: '1mb' }));
 
-// Caché agresivo para fuentes (1 año)
-app.use('/fonts', express.static(path.join(__dirname, 'public/fonts'), {
-    maxAge: '365d',
-    immutable: true,
-    etag: false,
-    lastModified: false
+// ⚠️ IMPORTANTE: Este DEBE ir PRIMERO (antes del static general)
+app.use('/fonts', express.static(path.join(__dirname, 'public', 'fonts'), {
+    maxAge: 31536000000, // 1 año en milisegundos
+    immutable: true
 }));
 
-// Caché para otros archivos estáticos
+// Static general DESPUÉS
 app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: '1d',
-    etag: true,
-    lastModified: true,
-    setHeaders: (res, filePath) => {
-        // Caché más largo para assets que no cambian
-        if (filePath.endsWith('.woff2') || filePath.endsWith('.woff')) {
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        } else if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
-            res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 día
-        } else if (filePath.endsWith('.png') || filePath.endsWith('.jpg') || filePath.endsWith('.ico')) {
-            res.setHeader('Cache-Control', 'public, max-age=604800'); // 7 días
-        }
-    }
+    etag: true
 }));
 
 // --- Middlewares de Sanitización y Logging ---
