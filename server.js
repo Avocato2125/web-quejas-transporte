@@ -392,8 +392,8 @@ const quejasRoutes = require('./routes/quejas.routes.js')(
     pool, 
     logger, 
     quejaLimiter, 
-    (req, res, next) => next(), // authenticateToken DESACTIVADO TEMPORALMENTE PARA TESTING
-    (role) => (req, res, next) => next(), // requireRole DESACTIVADO TEMPORALMENTE PARA TESTING
+    authenticateToken, 
+    requireRole, 
     quejaSchemas, 
     QUEJAS_CONFIG, 
     ALLOWED_TABLES, 
