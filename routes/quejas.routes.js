@@ -409,22 +409,13 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
                 countQuery = `SELECT COUNT(*) FROM quejas WHERE estado_queja = $1`;
                 params = [estado, limitNum, offset];
             } else {
+                // Consulta optimizada - solo campos básicos para el listado rápido
                 query = `
-                    SELECT 
-                        q.*,
-                        dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
-                        dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
-                        di.ubicacion_inseguridad, di.detalles_inseguridad,
-                        dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
-                        dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
-                        dot.detalles_otro
-                    FROM quejas q
-                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
-                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
-                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
-                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
-                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
-                    ORDER BY q.fecha_creacion DESC
+                    SELECT
+                        id, folio, numero_empleado, empresa, ruta, numero_unidad, colonia,
+                        turno, tipo, estado_queja, fecha_creacion, latitud, longitud
+                    FROM quejas
+                    ORDER BY fecha_creacion DESC
                     LIMIT $1 OFFSET $2
                 `;
                 countQuery = `SELECT COUNT(*) FROM quejas`;

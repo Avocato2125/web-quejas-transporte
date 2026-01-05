@@ -765,8 +765,13 @@
             }
         });
 
+        // --- OPTIMIZACIÓN DE BÚSQUEDA ---
+        let searchTimeout;
         if (searchInput) {
-            searchInput.addEventListener('input', renderQuejas);
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(renderQuejas, 300); // Debounce de 300ms
+            });
         }
 
         quejasLista.addEventListener('click', (e) => {
