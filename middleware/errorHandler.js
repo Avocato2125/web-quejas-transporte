@@ -3,7 +3,7 @@
  * Centraliza el manejo de errores y logging
  */
 
-const winston = require('winston');
+const { mainLogger } = require('../config/logger');
 
 /**
  * Middleware para manejar errores de forma centralizada
@@ -14,7 +14,7 @@ const winston = require('winston');
  */
 function errorHandler(err, req, res, next) {
     // Log del error
-    winston.error('Error capturado:', {
+    mainLogger.error('Error capturado:', {
         message: err.message,
         stack: err.stack,
         url: req.url,
@@ -164,9 +164,9 @@ function requestLogger(req, res, next) {
         };
 
         if (res.statusCode >= 400) {
-            winston.warn('Request con error:', logData);
+            mainLogger.warn('Request con error:', logData);
         } else {
-            winston.info('Request procesada:', logData);
+            mainLogger.info('Request procesada:', logData);
         }
     });
 
