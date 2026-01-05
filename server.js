@@ -94,6 +94,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
     lastModified: true
 }));
 
+// Después de express.static, agrega caché para fuentes
+app.use('/fonts', express.static(path.join(__dirname, 'public/fonts'), {
+    maxAge: '365d',  // Caché de 1 año para fuentes
+    immutable: true
+}));
+
 // --- Middlewares de Sanitización y Logging ---
 app.use(sanitizeRequestBody);
 app.use(sanitizeQueryParams);
