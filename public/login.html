@@ -73,9 +73,36 @@
         .form-group { margin-bottom: 20px; text-align: left; }
         label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-text-dark); }
         input { width: 100%; padding: 12px; border: 2px solid var(--color-border); border-radius: 8px; font-size: 1em; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background-color: var(--color-accent-blue); color: var(--color-white); border: none; border-radius: 8px; font-size: 1.1em; font-weight: 700; cursor: pointer; transition: background-color 0.2s ease; }
-        button:hover { background-color: #2563EB; }
-        button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+        button[type="submit"], 
+        #submitButton {
+            background: linear-gradient(135deg, #1D4ED8, #1E3A8A);
+            color: #FFFFFF;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            border: none;
+            padding: 14px 28px;
+            font-size: 1.1em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.4);
+        }
+
+        button[type="submit"]:hover,
+        #submitButton:hover {
+            background: linear-gradient(135deg, #1E40AF, #172554);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 58, 138, 0.5);
+        }
+
+        button[type="submit"]:disabled,
+        #submitButton:disabled {
+            background: #9CA3AF;
+            color: #FFFFFF;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
         #error-message { color: var(--color-error); margin-top: 15px; font-weight: 600; min-height: 20px; visibility: hidden; opacity: 0; transition: visibility 0s, opacity 0.3s ease; }
         #error-message.visible { visibility: visible; opacity: 1; }
     </style>
