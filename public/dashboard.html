@@ -358,6 +358,44 @@
             color: #FFFFFF !important;
             font-weight: 600;
         }
+
+        /* Panel Admin */
+        .admin-panel {
+            background-color: var(--color-white);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .admin-panel h2 {
+            color: var(--color-primary-blue);
+            margin-bottom: 20px;
+        }
+        .admin-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .admin-btn {
+            background-color: var(--color-primary-blue);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1em;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .admin-btn:hover {
+            background-color: var(--color-accent-blue);
+        }
+        .delete-btn {
+            background-color: var(--color-error);
+        }
+        .delete-btn:hover {
+            background-color: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -382,10 +420,18 @@
         <button class="tab-btn" data-tipo="inseguridad">Inseguridad</button>
         <button class="tab-btn" data-tipo="unidad_mal_estado">Mal Estado</button>
         <button class="tab-btn" data-tipo="otro">Otras</button>
+        <button class="tab-btn" data-tipo="admin" id="adminTab" style="display: none;">Admin</button>
     </nav>
 
     <main class="dashboard-container">
         <div class="quejas-lista" id="quejasLista"></div>
+        <div class="admin-panel" id="adminPanel" style="display: none;">
+            <h2>Panel de Administración - Audit Logs</h2>
+            <div class="admin-buttons">
+                <button id="exportCsvBtn" class="admin-btn">Exportar CSV (últimos 3 meses)</button>
+                <button id="deleteLogsBtn" class="admin-btn delete-btn">Borrar logs (últimos 3 meses)</button>
+            </div>
+        </div>
     </main>
     
     <div class="modal-overlay" id="detailsModal">
@@ -419,6 +465,34 @@
         </div>
     </div>
 
+    <!-- Modal de confirmación para borrar logs -->
+    <div class="modal-overlay" id="confirmDeleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirmar Borrado de Logs</h2>
+                <button class="modal-close-btn" id="confirmCloseBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres borrar todos los logs de auditoría de los últimos 3 meses? Esta acción no se puede deshacer.</p>
+                <p>Para confirmar, ingresa las credenciales de un usuario con rol de administrador:</p>
+                <form id="confirmDeleteForm">
+                    <div class="detail-item">
+                        <strong>Usuario Admin:</strong>
+                        <input type="text" id="adminUsername" required>
+                    </div>
+                    <div class="detail-item">
+                        <strong>Contraseña:</strong>
+                        <input type="password" id="adminPassword" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelDeleteBtn">Cancelar</button>
+                <button id="confirmDeleteBtn" class="delete-btn">Borrar Logs</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- AUTENTICACIÓN ---
@@ -440,6 +514,12 @@
             window.location.href = '/login.html';
         });
 
+        // Mostrar tab admin si es admin
+        const adminTab = document.getElementById('adminTab');
+        if (user && user.role === 'admin') {
+            adminTab.style.display = 'inline-block';
+        }
+
         // --- ELEMENTOS DEL DOM ---
         const tabsNav = document.getElementById('tabsNav');
         const quejasLista = document.getElementById('quejasLista');
@@ -450,6 +530,16 @@
         const resolveForm = document.getElementById('resolveForm');
         const searchInput = document.getElementById('searchFolio');
         const generatePdfBtn = document.getElementById('generatePdfBtn');
+        
+        // Elementos admin
+        const adminPanel = document.getElementById('adminPanel');
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        const deleteLogsBtn = document.getElementById('deleteLogsBtn');
+        const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+        const confirmCloseBtn = document.getElementById('confirmCloseBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const confirmDeleteForm = document.getElementById('confirmDeleteForm');
         
         let todasLasQuejas = [];
         let quejaActual = null;
@@ -761,7 +851,16 @@
             if (e.target.classList.contains('tab-btn')) {
                 document.querySelector('.tab-btn.active').classList.remove('active');
                 e.target.classList.add('active');
-                renderQuejas();
+                
+                const tipo = e.target.getAttribute('data-tipo');
+                if (tipo === 'admin') {
+                    quejasLista.style.display = 'none';
+                    adminPanel.style.display = 'block';
+                } else {
+                    quejasLista.style.display = 'grid';
+                    adminPanel.style.display = 'none';
+                    renderQuejas();
+                }
             }
         });
 
@@ -886,6 +985,81 @@
                 alert(`Error al abrir reporte: ${error.message}`);
             }
         }
+
+        // --- EVENT LISTENERS ADMIN ---
+        exportCsvBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/admin/audit-logs/export', {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al exportar CSV');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `audit-logs-ultimos-3-meses.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                alert('CSV exportado exitosamente');
+            } catch (error) {
+                alert(`Error al exportar CSV: ${error.message}`);
+            }
+        });
+
+        deleteLogsBtn.addEventListener('click', () => {
+            confirmDeleteModal.classList.add('visible');
+        });
+
+        confirmCloseBtn.addEventListener('click', () => {
+            confirmDeleteModal.classList.remove('visible');
+            confirmDeleteForm.reset();
+        });
+
+        cancelDeleteBtn.addEventListener('click', () => {
+            confirmDeleteModal.classList.remove('visible');
+            confirmDeleteForm.reset();
+        });
+
+        confirmDeleteBtn.addEventListener('click', async () => {
+            const adminUsername = document.getElementById('adminUsername').value;
+            const adminPassword = document.getElementById('adminPassword').value;
+            
+            if (!adminUsername || !adminPassword) {
+                alert('Por favor ingresa usuario y contraseña de admin');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/audit-logs/delete', {
+                    method: 'DELETE',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ 
+                        adminUsername, 
+                        adminPassword 
+                    })
+                });
+                
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error);
+                
+                alert('Logs borrados exitosamente');
+                confirmDeleteModal.classList.remove('visible');
+                confirmDeleteForm.reset();
+            } catch (error) {
+                alert(`Error al borrar logs: ${error.message}`);
+            }
+        });
 
         // --- INICIALIZAR ---
         fetchQuejas();

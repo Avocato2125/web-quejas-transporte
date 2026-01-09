@@ -162,6 +162,7 @@
     "json-buffer": "^3.0.1",
     "json-schema-traverse": "^0.4.1",
     "json-stable-stringify-without-jsonify": "^1.0.1",
+    "json2csv": "6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.2",
     "jwa": "^2.0.1",
     "jws": "^4.0.0",

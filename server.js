@@ -402,6 +402,10 @@ const quejasRoutes = require('./routes/quejas.routes.js')(
 );
 app.use('/', quejasRoutes);
 
+// --- RUTAS DE ADMINISTRACIÓN ---
+const adminRoutes = require('./routes/admin.routes');
+app.use('/admin', adminRoutes);
+
 // --- Middlewares de Manejo de Errores (deben ir al final) ---
 app.use(notFoundHandler);
 app.use(errorHandler);
