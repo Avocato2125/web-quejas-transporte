@@ -612,10 +612,13 @@
                 return;
             }
             
+            // Usar fragmento para mejor rendimiento
+            const fragment = document.createDocumentFragment();
             quejasFinales.forEach(queja => {
                 const tarjeta = crearTarjetaQueja(queja);
-                quejasLista.appendChild(tarjeta);
+                fragment.appendChild(tarjeta);
             });
+            quejasLista.appendChild(fragment);
             
             // Event listeners para botones PDF
             document.querySelectorAll('.pdf-button-direct').forEach(button => {
@@ -1062,7 +1065,13 @@
         });
 
         // --- INICIALIZAR ---
-        fetchQuejas();
+        // Mostrar indicador de carga
+        quejasLista.innerHTML = '<p class="empty-state">Cargando quejas...</p>';
+        
+        // Deferir la carga inicial para mejorar rendimiento
+        setTimeout(() => {
+            fetchQuejas();
+        }, 100);
     });
     </script>
 </body>
