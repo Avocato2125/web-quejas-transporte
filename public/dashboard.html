@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Quejas</title>
     
-    <!-- PRECARGAR FUENTES -->
+    <!-- PRECARGAR FUENTES (agregar esto) -->
     <link rel="preload" href="/fonts/lato-400.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/lato-700.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/montserrat-600.woff2" as="font" type="font/woff2" crossorigin>
@@ -587,13 +587,14 @@
                     throw new Error(quejasData.error || 'Error desconocido');
                 }
             } catch (error) {
-                quejasLista.innerHTML = `<p class="empty-state">Error al cargar las quejas: ${error.message}</p>`;
+                quejasLista.innerHTML = '<p class="empty-state">Error al cargar las quejas.</p>';
                 console.error(error);
             }
         }
 
         // --- RENDERIZAR QUEJAS ---
         function renderQuejas() {
+            quejasLista.innerHTML = '';
             const activeTab = document.querySelector('.tab-btn.active');
             const tipoFiltro = activeTab.dataset.tipo;
             const searchTerm = searchInput ? searchInput.value.trim().toUpperCase() : '';
@@ -609,7 +610,7 @@
                 quejasFiltradas = quejasFiltradas.filter(q => q.tipo === tipoFiltro);
             }
             
-            // Filtrar por búsqueda (mejorado)
+            // Filtrar por búsqueda
             const quejasFinales = quejasFiltradas.filter(queja => {
                 if (!searchTerm) return true;
                 return queja.folio?.toUpperCase().includes(searchTerm) || false;
@@ -620,61 +621,69 @@
                 return;
             }
             
-            // Renderizar todas las tarjetas de una vez (mejor performance)
-            const htmlTarjetas = quejasFinales.map(queja => {
-                const esRespondida = queja.estado_queja === 'Revisada';
-                const claseRespondida = esRespondida ? 'queja-tarjeta queja-respondida' : 'queja-tarjeta';
-                
-                // Formatear fecha Y HORA
-                let fechaFormateada = 'Fecha no disponible';
-                if (queja.fecha_creacion) {
-                    try {
-                        const fecha = new Date(queja.fecha_creacion);
-                        if (!isNaN(fecha.getTime())) {
-                            fechaFormateada = fecha.toLocaleDateString('es-MX', { 
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: true,
-                                timeZone: 'America/Mexico_City'
-                            });
-                        }
-                    } catch (error) {
-                        console.warn('Error parseando fecha:', error);
-                    }
-                }
-                
-                // Obtener nombre amigable del tipo
-                const tipoDisplay = TIPO_DISPLAY[queja.tipo] || queja.tipo;
-                
-                return `
-                    <div class="${claseRespondida}" data-id="${queja.id}" data-folio="${queja.folio}">
-                        <div class="tarjeta-header">
-                            <span class="tarjeta-folio">${queja.folio || 'N/A'}</span>
-                            <span class="tarjeta-fecha">${fechaFormateada}</span>
-                        </div>
-                        <div class="tarjeta-body">
-                            <p><strong>Tipo:</strong> ${tipoDisplay}</p>
-                            <p><strong>Empleado:</strong> ${queja.numero_empleado || 'N/A'}</p>
-                            <p><strong>Empresa:</strong> ${queja.empresa || 'N/A'}</p>
-                            <p><strong>Estado:</strong> ${queja.estado_queja || 'Pendiente'}</p>
-                            ${esRespondida ? `
-                                <div class="pdf-buttons">
-                                    <button class="pdf-button-direct" data-folio="${queja.folio}">Descargar PDF</button>
-                                    <button class="pdf-button-view" data-folio="${queja.folio}">Ver Reporte</button>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            // Usar fragmento para mejor rendimiento
+            const fragment = document.createDocumentFragment();
+            quejasFinales.forEach(queja => {
+                const tarjeta = crearTarjetaQueja(queja);
+                fragment.appendChild(tarjeta);
+            });
+            quejasLista.appendChild(fragment);
+        }
+
+        // --- CREAR TARJETA DE QUEJA ---
+        function crearTarjetaQueja(queja) {
+            const tarjeta = document.createElement('div');
+            tarjeta.className = queja.estado_queja === 'Revisada' ? 'queja-tarjeta queja-respondida' : 'queja-tarjeta';
+            tarjeta.dataset.id = queja.id;
+            tarjeta.dataset.folio = queja.folio;
             
-            quejasLista.innerHTML = htmlTarjetas;
+            // Formatear fecha Y HORA
+            let fechaFormateada = 'Fecha no disponible';
+            if (queja.fecha_creacion) {
+                try {
+                    const fecha = new Date(queja.fecha_creacion);
+                    if (!isNaN(fecha.getTime())) {
+                        fechaFormateada = fecha.toLocaleDateString('es-MX', { 
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                            timeZone: 'America/Mexico_City'
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error parseando fecha:', error);
+                }
+            }
+            
+            // Obtener nombre amigable del tipo
+            const tipoDisplay = TIPO_DISPLAY[queja.tipo] || queja.tipo;
+            
+            tarjeta.innerHTML = `
+                <div class="tarjeta-header">
+                    <span class="tarjeta-folio">${queja.folio || 'N/A'}</span>
+                    <span class="tarjeta-fecha">${fechaFormateada}</span>
+                </div>
+                <div class="tarjeta-body">
+                    <p><strong>Tipo:</strong> ${tipoDisplay}</p>
+                    <p><strong>Empleado:</strong> ${queja.numero_empleado || 'N/A'}</p>
+                    <p><strong>Empresa:</strong> ${queja.empresa || 'N/A'}</p>
+                    <p><strong>Estado:</strong> ${queja.estado_queja || 'Pendiente'}</p>
+                    ${queja.estado_queja === 'Revisada' ? `
+                        <div class="pdf-buttons">
+                            <button class="pdf-button-direct" data-folio="${queja.folio}">Descargar PDF</button>
+                            <button class="pdf-button-view" data-folio="${queja.folio}">Ver Reporte</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            return tarjeta;
         }
         
-        // --- FUNCIÓN PARA CERRAR MODAL (MEJORADO) ---
+        // --- FUNCIÓN PARA CERRAR MODAL ---
         function cerrarModal() {
             detailsModal.classList.remove('visible');
             resolveForm.reset();
@@ -864,29 +873,26 @@
         if (searchInput) {
             searchInput.addEventListener('input', () => {
                 clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(renderQuejas, 300);
+                searchTimeout = setTimeout(renderQuejas, 300); // Debounce de 300ms
             });
         }
 
-        // --- EVENT DELEGATION PARA CLICKS EN QUEJAS (CORREGIDO) ---
         quejasLista.addEventListener('click', (e) => {
             // Manejar botón PDF directo
             if (e.target.classList.contains('pdf-button-direct')) {
                 e.stopPropagation();
-                const folio = e.target.dataset.folio;
-                generarPdfDirecto(folio);
+                generarPdfDirecto(e.target.dataset.folio);
                 return;
             }
             
             // Manejar botón ver reporte
             if (e.target.classList.contains('pdf-button-view')) {
                 e.stopPropagation();
-                const folio = e.target.dataset.folio;
-                verReporte(folio);
+                verReporte(e.target.dataset.folio);
                 return;
             }
             
-            // Abrir modal de detalles
+            // Abrir modal
             const tarjeta = e.target.closest('.queja-tarjeta');
             if (tarjeta) {
                 const quejaId = parseInt(tarjeta.dataset.id);
@@ -920,18 +926,6 @@
                         procedencia: procedencia.value
                     })
                 });
-                
-                if (!response.ok) {
-                    let errorMsg = 'Error al guardar la resolución';
-                    try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.error || errorMsg;
-                    } catch {
-                        errorMsg = `Error ${response.status}: ${response.statusText}`;
-                    }
-                    throw new Error(errorMsg);
-                }
-                
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error);
                 
@@ -944,7 +938,7 @@
             }
         });
         
-        // --- CERRAR MODAL (MEJORADO) ---
+        // --- CERRAR MODAL ---
         modalCloseBtn.addEventListener('click', cerrarModal);
         detailsModal.addEventListener('click', (e) => { 
             if (e.target === detailsModal) cerrarModal();
@@ -956,7 +950,7 @@
             await generarPdfDirecto(quejaActual.folio);
         });
 
-        // --- GENERAR PDF DIRECTO (MEJORADO) ---
+        // --- GENERAR PDF DIRECTO ---
         async function generarPdfDirecto(folio) {
             try {
                 const response = await fetch(`/queja/pdf/${folio}`, {
@@ -975,20 +969,16 @@
                 }
                 
                 const blob = await response.blob();
-                
                 // Validar que sea un PDF
                 if (blob.type !== 'application/pdf') {
                     throw new Error('El archivo descargado no es un PDF válido');
                 }
-                
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `reporte-queja-${folio}.pdf`;
                 document.body.appendChild(a);
                 a.click();
-                
-                // Cleanup
                 setTimeout(() => {
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
@@ -999,7 +989,7 @@
             }
         }
 
-        // --- VER REPORTE HTML (MEJORADO) ---
+        // --- VER REPORTE HTML ---
         async function verReporte(folio) {
             try {
                 const response = await fetch(`/queja/view/${folio}`, {
@@ -1022,8 +1012,6 @@
                 if (newWindow) {
                     newWindow.document.write(htmlContent);
                     newWindow.document.close();
-                } else {
-                    throw new Error('No se pudo abrir la ventana. Verifica que no esté bloqueada por el navegador.');
                 }
             } catch (error) {
                 alert(`Error al abrir reporte: ${error.message}`);
@@ -1055,8 +1043,6 @@
                 a.download = `audit-logs-ultimos-3-meses.csv`;
                 document.body.appendChild(a);
                 a.click();
-                
-                // Cleanup
                 setTimeout(() => {
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
@@ -1104,17 +1090,6 @@
                     })
                 });
                 
-                if (!response.ok) {
-                    let errorMsg = 'Error al borrar logs';
-                    try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.error || errorMsg;
-                    } catch {
-                        errorMsg = `Error ${response.status}: ${response.statusText}`;
-                    }
-                    throw new Error(errorMsg);
-                }
-                
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error);
                 
@@ -1127,6 +1102,7 @@
         });
 
         // --- INICIALIZAR ---
+        // Mostrar indicador de carga
         quejasLista.innerHTML = '<p class="empty-state">Cargando quejas...</p>';
         
         // Cargar quejas
