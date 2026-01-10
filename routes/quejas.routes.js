@@ -295,7 +295,7 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
     }
 
     // ============================================
-    // OBTENER QUEJAS (lista)
+    // OBTENER QUEJAS (lista) - CORREGIDO
     // ============================================
     router.get('/quejas', authenticateToken, async (req, res) => {
         try {
@@ -304,51 +304,43 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             const limitNum = Math.min(parseInt(limit, 10), 100);
             const offset = (pageNum - 1) * limitNum;
 
+            // Definimos la consulta base con el formateo de hora incluido
+            const querySelect = `
+                SELECT 
+                    q.id, q.folio, q.numero_empleado, q.empresa, q.ruta, q.colonia, q.turno, 
+                    q.tipo, q.latitud, q.longitud, q.numero_unidad, q.estado_queja,
+                    -- Formateamos la fecha de creación a texto ISO
+                    TO_CHAR(q.fecha_creacion, 'YYYY-MM-DD"T"HH24:MI:SS') as fecha_creacion,
+                    
+                    dr.direccion_subida, 
+                    -- AQUÍ ESTÁ LA SOLUCIÓN: Formateamos las horas a texto AM/PM
+                    TO_CHAR(dr.hora_programada, 'HH12:MI AM') as hora_programada,
+                    TO_CHAR(dr.hora_llegada, 'HH12:MI AM') as hora_llegada,
+                    TO_CHAR(dr.hora_llegada_planta, 'HH12:MI AM') as hora_llegada_planta,
+                    dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
+                    
+                    di.ubicacion_inseguridad, di.detalles_inseguridad,
+                    dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
+                    dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
+                    dot.detalles_otro
+                FROM quejas q
+                LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
+                LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
+                LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
+                LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
+                LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
+            `;
+
             let query;
             let countQuery;
             let params;
             
             if (estado) {
-                query = `
-                    SELECT 
-                        q.*,
-                        dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
-                        dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
-                        di.ubicacion_inseguridad, di.detalles_inseguridad,
-                        dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
-                        dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
-                        dot.detalles_otro
-                    FROM quejas q
-                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
-                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
-                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
-                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
-                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
-                    WHERE q.estado_queja = $1
-                    ORDER BY q.fecha_creacion DESC
-                    LIMIT $2 OFFSET $3
-                `;
+                query = `${querySelect} WHERE q.estado_queja = $1 ORDER BY q.fecha_creacion DESC LIMIT $2 OFFSET $3`;
                 countQuery = `SELECT COUNT(*) FROM quejas WHERE estado_queja = $1`;
                 params = [estado, limitNum, offset];
             } else {
-                query = `
-                    SELECT 
-                        q.*,
-                        dr.direccion_subida, dr.hora_programada, dr.hora_llegada, 
-                        dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
-                        di.ubicacion_inseguridad, di.detalles_inseguridad,
-                        dmt.nombre_conductor_maltrato, dmt.detalles_maltrato,
-                        dume.numero_unidad_malestado, dume.tipo_falla, dume.detalles_malestado,
-                        dot.detalles_otro
-                    FROM quejas q
-                    LEFT JOIN detalles_retraso dr ON q.id = dr.queja_id
-                    LEFT JOIN detalles_inseguridad di ON q.id = di.queja_id
-                    LEFT JOIN detalles_mal_trato dmt ON q.id = dmt.queja_id
-                    LEFT JOIN detalles_unidad_mal_estado dume ON q.id = dume.queja_id
-                    LEFT JOIN detalles_otro dot ON q.id = dot.queja_id
-                    ORDER BY q.fecha_creacion DESC
-                    LIMIT $1 OFFSET $2
-                `;
+                query = `${querySelect} ORDER BY q.fecha_creacion DESC LIMIT $1 OFFSET $2`;
                 countQuery = `SELECT COUNT(*) FROM quejas`;
                 params = [limitNum, offset];
             }
