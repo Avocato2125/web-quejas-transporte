@@ -637,26 +637,9 @@
             tarjeta.dataset.id = queja.id;
             tarjeta.dataset.folio = queja.folio;
             
-            // Formatear fecha Y HORA
-            let fechaFormateada = 'Fecha no disponible';
-            if (queja.fecha_creacion) {
-                try {
-                    const fecha = new Date(queja.fecha_creacion);
-                    if (!isNaN(fecha.getTime())) {
-                        fechaFormateada = fecha.toLocaleDateString('es-MX', { 
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: true,
-                            timeZone: 'America/Mexico_City'
-                        });
-                    }
-                } catch (error) {
-                    console.warn('Error parseando fecha:', error);
-                }
-            }
+            // USAR LA NUEVA VARIABLE DE FECHA (TEXTO) DIRECTAMENTE
+            // Si no existe fecha_texto, usamos un fallback
+            let fechaMostrar = queja.fecha_texto || 'Fecha no disponible';
             
             // Obtener nombre amigable del tipo
             const tipoDisplay = TIPO_DISPLAY[queja.tipo] || queja.tipo;
@@ -664,7 +647,7 @@
             tarjeta.innerHTML = `
                 <div class="tarjeta-header">
                     <span class="tarjeta-folio">${queja.folio || 'N/A'}</span>
-                    <span class="tarjeta-fecha">${fechaFormateada}</span>
+                    <span class="tarjeta-fecha">${fechaMostrar}</span>
                 </div>
                 <div class="tarjeta-body">
                     <p><strong>Tipo:</strong> ${tipoDisplay}</p>
@@ -698,7 +681,9 @@
             
             resolveForm.reset();
             
+            // MAPEO ACTUALIZADO CON LOS NUEVOS NOMBRES DE VARIABLES DEL SERVIDOR
             const etiquetas = {
+                // Datos generales
                 numero_empleado: 'No. Empleado', 
                 empresa: 'Empresa', 
                 ruta: 'Ruta', 
@@ -707,58 +692,35 @@
                 turno: 'Turno', 
                 tipo: 'Tipo de Queja', 
                 folio: 'Folio',
-                fecha_creacion: 'Fecha de Creación',
-                latitud: 'Latitud',
-                longitud: 'Longitud',
-                ip_address: 'Dirección IP',
-                user_agent: 'Navegador',
+                
+                // NUEVOS CAMPOS DE FECHA/HORA (TEXTO)
+                fecha_texto: 'Fecha de Creación',
+                hora_prog_texto: 'Hora Programada', 
+                hora_real_texto: 'Hora Real de Llegada',
+                hora_planta_texto: 'Llegada a Planta',
+
+                // Detalles específicos
                 detalles_retraso: 'Detalles de Retraso', 
                 direccion_subida: 'Dirección de Recolección',
-                hora_programada: 'Hora Programada', 
-                hora_llegada: 'Hora Real de Llegada',
                 metodo_transporte_alterno: 'Transporte Alterno', 
                 monto_gastado: 'Monto Gastado',
-                hora_llegada_planta: 'Llegada a Planta', 
+                
                 nombre_conductor_maltrato: 'Conductor',
                 detalles_maltrato: 'Detalles de Mal Trato', 
+                
                 detalles_inseguridad: 'Detalles de Inseguridad',
                 ubicacion_inseguridad: 'Lugar del Incidente', 
+                
                 numero_unidad_malestado: 'No. Unidad (Mal Estado)',
                 tipo_falla: 'Tipo de Falla', 
                 detalles_malestado: 'Detalles (Mal Estado)', 
+                
                 detalles_otro: 'Detalles (Otro)'
             };
             
-            // Campos comunes (siempre mostrar primero)
-            const camposComunes = ['numero_empleado', 'empresa', 'ruta', 'numero_unidad', 'colonia', 'turno', 'tipo', 'folio', 'fecha_creacion', 'latitud', 'longitud'];
-            
-            // Campos específicos por tipo
-            const camposEspecificos = {
-                'retraso': ['detalles_retraso', 'direccion_subida', 'hora_programada', 'hora_llegada', 'metodo_transporte_alterno', 'monto_gastado', 'hora_llegada_planta'],
-                'mal_trato': ['nombre_conductor_maltrato', 'detalles_maltrato'],
-                'inseguridad': ['detalles_inseguridad', 'ubicacion_inseguridad'],
-                'unidad_mal_estado': ['numero_unidad_malestado', 'tipo_falla', 'detalles_malestado'],
-                'otro': ['detalles_otro']
-            };
-            
-            // Campos que son horas (TIMESTAMP) - mostrar solo hora
-            const camposHora = ['hora_programada', 'hora_llegada', 'hora_llegada_planta'];
-            
-            // Campos que son fecha completa (fecha + hora)
-            const camposFechaCompleta = ['fecha_creacion'];
-            
-            // Función auxiliar para crear item
-            function crearItem(key, valor) {
-                const item = document.createElement('div');
-                item.className = 'detail-item';
-                item.innerHTML = `<strong>${etiquetas[key]}</strong> <span>${valor}</span>`;
-                if (key.includes('detalles')) item.classList.add('full-width');
-                return item;
-            }
-            
-            // Mostrar campos comunes
-            camposComunes.forEach(key => {
-                if (etiquetas[key] && queja[key] !== null && queja[key] !== '') {
+            for (const key in etiquetas) {
+                // Verificamos si la queja tiene ese dato y no es nulo/vacío
+                if (queja[key] !== null && queja[key] !== undefined && queja[key] !== '') {
                     let valor = queja[key];
                     
                     // Convertir tipo a nombre amigable
@@ -766,55 +728,8 @@
                         valor = TIPO_DISPLAY[valor] || valor;
                     }
                     
-                    // Formatear campos de FECHA COMPLETA (fecha + hora)
-                    if (camposFechaCompleta.includes(key) && valor) {
-                        try {
-                            const fecha = new Date(valor);
-                            if (!isNaN(fecha.getTime())) {
-                                valor = fecha.toLocaleDateString('es-MX', { 
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true,
-                                    timeZone: 'America/Mexico_City'
-                                });
-                            }
-                        } catch (error) {
-                            console.warn('Error formateando fecha:', key, valor, error);
-                        }
-                    }
-                    
-                    modalBody.appendChild(crearItem(key, valor));
-                }
-            });
-            
-            // Mostrar campos específicos del tipo
-            const camposTipo = camposEspecificos[queja.tipo] || [];
-            camposTipo.forEach(key => {
-                if (etiquetas[key] && queja[key] !== null && queja[key] !== '') {
-                    let valor = queja[key];
-                    
-                    // Formatear campos de HORA (mostrar solo hora)
-                    if (camposHora.includes(key) && valor) {
-                        try {
-                            const fechaHora = new Date(valor);
-                            if (!isNaN(fechaHora.getTime())) {
-                                valor = fechaHora.toLocaleTimeString('es-MX', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit', 
-                                    hour12: true,
-                                    timeZone: 'America/Mexico_City'
-                                });
-                            }
-                        } catch (error) {
-                            console.warn('Error formateando hora:', key, valor, error);
-                        }
-                    }
-                    
                     // Formatear monto gastado como moneda
-                    if (key === 'monto_gastado' && valor) {
+                    if (key === 'monto_gastado') {
                         try {
                             const monto = parseFloat(valor);
                             if (!isNaN(monto)) {
@@ -828,9 +743,19 @@
                         }
                     }
                     
-                    modalBody.appendChild(crearItem(key, valor));
+                    // Renderizar el item
+                    const item = document.createElement('div');
+                    item.className = 'detail-item';
+                    item.innerHTML = `<strong>${etiquetas[key]}</strong> <span>${valor}</span>`;
+                    
+                    // Si es un detalle largo, que ocupe todo el ancho
+                    if (key.includes('detalles') || key.includes('ubicacion') || key.includes('direccion')) {
+                        item.classList.add('full-width');
+                    }
+                    
+                    modalBody.appendChild(item);
                 }
-            });
+            }
             
             // Configurar modal según estado
             if (queja.estado_queja === 'Revisada') {
