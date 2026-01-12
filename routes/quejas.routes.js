@@ -77,17 +77,23 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
 
             await client.query('BEGIN');
 
+            // Crear fecha en zona horaria de Saltillo, Coahuila (America/Monterrey)
+            const ahora = new Date();
+            const fechaMexico = new Date(ahora.toLocaleString("en-US", { timeZone: "America/Monterrey" }));
+            logger.debug('Fecha Saltillo/Monterrey generada:', fechaMexico.toISOString());
+
             const queryQuejas = `
                 INSERT INTO quejas (
                     folio, numero_empleado, empresa, ruta, colonia, turno,
-                    tipo, latitud, longitud, numero_unidad, ip_address, user_agent
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    tipo, latitud, longitud, numero_unidad, ip_address, user_agent, fecha_creacion
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 RETURNING id
             `;
             
             const valuesQuejas = [
                 nuevoFolio, numero_empleado, empresa, ruta || null, colonia || null, turno || null,
-                tipo, latitud || null, longitud || null, numero_unidad || null, req.ip || null, req.get('User-Agent') || null
+                tipo, latitud || null, longitud || null, numero_unidad || null, req.ip || null, req.get('User-Agent') || null,
+                fechaMexico
             ];
 
             const resultQuejas = await client.query(queryQuejas, valuesQuejas);
