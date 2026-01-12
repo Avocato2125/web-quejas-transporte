@@ -346,6 +346,21 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             }
 
             const result = await pool.query(query, params);
+            
+            // --- AGREGAR ESTE LOG DE DEPURACIÓN ---
+            if (result.rows.length > 0) {
+                console.log('--- DEBUG BASE DE DATOS ---');
+                // Buscamos una de retraso para ver sus horas
+                const deRetraso = result.rows.find(r => r.tipo === 'retraso');
+                if (deRetraso) {
+                    console.log('Registro crudo de DB:', JSON.stringify(deRetraso, null, 2));
+                } else {
+                    console.log('No hay quejas de retraso, mostrando la primera:', result.rows[0]);
+                }
+                console.log('---------------------------');
+            }
+            // --------------------------------------
+
             const countResult = await pool.query(countQuery, estado ? [estado] : []);
             const total = parseInt(countResult.rows[0].count, 10);
 
