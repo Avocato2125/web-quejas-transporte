@@ -638,7 +638,7 @@
             tarjeta.dataset.folio = queja.folio;
             
             // USAMOS EL CAMPO DE TEXTO QUE VIENE DEL SERVIDOR
-            let fechaMostrar = queja.fecha_creacion_texto || 'Fecha no disponible';
+            let fechaMostrar = queja.fecha_texto || 'Fecha no disponible';
             
             // Obtener nombre amigable del tipo
             const tipoDisplay = TIPO_DISPLAY[queja.tipo] || queja.tipo;
@@ -692,7 +692,7 @@
                 folio: 'Folio',
                 
                 // Usamos los campos de texto
-                fecha_creacion_texto: 'Fecha de Creación',
+                fecha_texto: 'Fecha de Creación',
                 hora_programada_texto: 'Hora Programada', 
                 hora_llegada_texto: 'Hora Real de Llegada',
                 hora_planta_texto: 'Llegada a Planta',
