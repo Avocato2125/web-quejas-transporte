@@ -637,9 +637,8 @@
             tarjeta.dataset.id = queja.id;
             tarjeta.dataset.folio = queja.folio;
             
-            // USAR LA NUEVA VARIABLE DE FECHA (TEXTO) DIRECTAMENTE
-            // Si no existe fecha_texto, usamos un fallback
-            let fechaMostrar = queja.fecha_texto || 'Fecha no disponible';
+            // USAMOS EL CAMPO DE TEXTO QUE VIENE DEL SERVIDOR
+            let fechaMostrar = queja.fecha_creacion_texto || 'Fecha no disponible';
             
             // Obtener nombre amigable del tipo
             const tipoDisplay = TIPO_DISPLAY[queja.tipo] || queja.tipo;
@@ -681,9 +680,8 @@
             
             resolveForm.reset();
             
-            // MAPEO ACTUALIZADO CON LOS NUEVOS NOMBRES DE VARIABLES DEL SERVIDOR
+            // AQUÍ ESTÁ LA CLAVE: Mapeamos las etiquetas a los NOMBRES NUEVOS (_texto)
             const etiquetas = {
-                // Datos generales
                 numero_empleado: 'No. Empleado', 
                 empresa: 'Empresa', 
                 ruta: 'Ruta', 
@@ -693,37 +691,31 @@
                 tipo: 'Tipo de Queja', 
                 folio: 'Folio',
                 
-                // NUEVOS CAMPOS DE FECHA/HORA (TEXTO)
-                fecha_texto: 'Fecha de Creación',
-                hora_prog_texto: 'Hora Programada', 
-                hora_real_texto: 'Hora Real de Llegada',
+                // Usamos los campos de texto
+                fecha_creacion_texto: 'Fecha de Creación',
+                hora_programada_texto: 'Hora Programada', 
+                hora_llegada_texto: 'Hora Real de Llegada',
                 hora_planta_texto: 'Llegada a Planta',
-
-                // Detalles específicos
+                
                 detalles_retraso: 'Detalles de Retraso', 
                 direccion_subida: 'Dirección de Recolección',
                 metodo_transporte_alterno: 'Transporte Alterno', 
                 monto_gastado: 'Monto Gastado',
-                
                 nombre_conductor_maltrato: 'Conductor',
                 detalles_maltrato: 'Detalles de Mal Trato', 
-                
                 detalles_inseguridad: 'Detalles de Inseguridad',
                 ubicacion_inseguridad: 'Lugar del Incidente', 
-                
                 numero_unidad_malestado: 'No. Unidad (Mal Estado)',
                 tipo_falla: 'Tipo de Falla', 
                 detalles_malestado: 'Detalles (Mal Estado)', 
-                
                 detalles_otro: 'Detalles (Otro)'
             };
             
-            for (const key in etiquetas) {
-                // Verificamos si la queja tiene ese dato y no es nulo/vacío
-                if (queja[key] !== null && queja[key] !== undefined && queja[key] !== '') {
+            for(const key in etiquetas) {
+                // Verificamos si existe el dato en la queja
+                if(queja[key] !== null && queja[key] !== undefined && queja[key] !== '') {
                     let valor = queja[key];
                     
-                    // Convertir tipo a nombre amigable
                     if (key === 'tipo') {
                         valor = TIPO_DISPLAY[valor] || valor;
                     }
@@ -743,16 +735,15 @@
                         }
                     }
                     
-                    // Renderizar el item
+                    // YA NO NECESITAMOS FORMATEAR FECHAS NI HORAS AQUÍ
+                    // Porque ya vienen como texto listo desde el servidor
+                    
                     const item = document.createElement('div');
                     item.className = 'detail-item';
                     item.innerHTML = `<strong>${etiquetas[key]}</strong> <span>${valor}</span>`;
-                    
-                    // Si es un detalle largo, que ocupe todo el ancho
                     if (key.includes('detalles') || key.includes('ubicacion') || key.includes('direccion')) {
                         item.classList.add('full-width');
                     }
-                    
                     modalBody.appendChild(item);
                 }
             }

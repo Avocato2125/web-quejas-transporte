@@ -304,19 +304,23 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             const limitNum = Math.min(parseInt(limit, 10), 100);
             const offset = (pageNum - 1) * limitNum;
 
-            // Definimos la consulta base con el formateo de hora incluido
+            // Definimos la consulta base
             const querySelect = `
                 SELECT 
                     q.id, q.folio, q.numero_empleado, q.empresa, q.ruta, q.colonia, q.turno, 
                     q.tipo, q.latitud, q.longitud, q.numero_unidad, q.estado_queja,
-                    -- Formateamos la fecha de creación a texto ISO
-                    TO_CHAR(q.fecha_creacion, 'YYYY-MM-DD"T"HH24:MI:SS') as fecha_creacion,
+                    
+                    -- 1. Convertimos Fecha de Creación a Texto (para las tarjetas)
+                    TO_CHAR(q.fecha_creacion, 'DD/MM/YYYY HH12:MI AM') as fecha_creacion_texto,
                     
                     dr.direccion_subida, 
-                    -- AQUÍ ESTÁ LA SOLUCIÓN: Formateamos las horas a texto AM/PM
-                    TO_CHAR(dr.hora_programada, 'HH12:MI AM') as hora_programada,
-                    TO_CHAR(dr.hora_llegada, 'HH12:MI AM') as hora_llegada,
-                    TO_CHAR(dr.hora_llegada_planta, 'HH12:MI AM') as hora_llegada_planta,
+                    
+                    -- 2. Convertimos las Horas a Texto (para el modal)
+                    -- Usamos nombres nuevos (_texto) para evitar confusiones
+                    TO_CHAR(dr.hora_programada, 'HH12:MI AM') as hora_programada_texto,
+                    TO_CHAR(dr.hora_llegada, 'HH12:MI AM') as hora_llegada_texto,
+                    TO_CHAR(dr.hora_llegada_planta, 'HH12:MI AM') as hora_planta_texto,
+                    
                     dr.detalles_retraso, dr.metodo_transporte_alterno, dr.monto_gastado,
                     
                     di.ubicacion_inseguridad, di.detalles_inseguridad,
@@ -364,9 +368,10 @@ module.exports = (pool, logger, quejaLimiter, authenticateToken, requireRole, qu
             const countResult = await pool.query(countQuery, estado ? [estado] : []);
             const total = parseInt(countResult.rows[0].count, 10);
 
+            // Enviamos los datos. Como ahora son texto, sanitizeForFrontend no los romperá.
             res.status(200).json({
                 success: true,
-                data: sanitizeForFrontend(result.rows),
+                data: sanitizeForFrontend(result.rows), 
                 pagination: { 
                     page: pageNum, 
                     limit: limitNum, 
